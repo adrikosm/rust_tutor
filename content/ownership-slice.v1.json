@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "REL-OWNERSHIP-SLICE-001",
+  "sources": [
+    {
+      "id": "SRC-RUST-BOOK-OWNERSHIP-001",
+      "title": "The Rust Programming Language: Understanding Ownership",
+      "url": "https://doc.rust-lang.org/stable/book/ch04-00-understanding-ownership.html"
+    },
+    {
+      "id": "SRC-RUST-REFERENCE-SLICE-001",
+      "title": "The Rust Reference: Slice types",
+      "url": "https://doc.rust-lang.org/stable/reference/types/slice.html"
+    },
+    {
+      "id": "SRC-RUSTC-E0382-001",
+      "title": "Rust compiler error E0382",
+      "url": "https://doc.rust-lang.org/stable/error_codes/E0382.html"
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "OUT-TRACE-MOVE-001",
+      "conceptId": "CON-MOVE-001",
+      "title": "Trace a move",
+      "observable": "Name the valid owner after each transfer and predict a later use-of-moved-value error."
+    },
+    {
+      "id": "OUT-IMMUT-BORROW-001",
+      "conceptId": "CON-BORROW-001",
+      "title": "Choose a shared borrow",
+      "observable": "Use a shared reference when the callee reads and the caller keeps ownership."
+    },
+    {
+      "id": "OUT-MUT-BORROW-001",
+      "conceptId": "CON-MUT-BORROW-001",
+      "title": "Choose an exclusive mutable borrow",
+      "observable": "Use one mutable reference for bounded mutation and identify conflicting access."
+    },
+    {
+      "id": "OUT-SCOPE-001",
+      "conceptId": "CON-SCOPE-001",
+      "title": "Reason about scope and validity",
+      "observable": "Identify when an owner is dropped and reject a reference that would outlive its value."
+    },
+    {
+      "id": "OUT-SLICE-001",
+      "conceptId": "CON-SLICE-001",
+      "title": "Return a borrowed slice",
+      "observable": "Return a view into caller-owned data without copying or creating a dangling reference."
+    }
+  ],
+  "prerequisites": [
+    {
+      "sourceId": "OUT-TRACE-MOVE-001",
+      "targetId": "OUT-IMMUT-BORROW-001"
+    },
+    {
+      "sourceId": "OUT-IMMUT-BORROW-001",
+      "targetId": "OUT-MUT-BORROW-001"
+    },
+    {
+      "sourceId": "OUT-IMMUT-BORROW-001",
+      "targetId": "OUT-SCOPE-001"
+    },
+    {
+      "sourceId": "OUT-SCOPE-001",
+      "targetId": "OUT-SLICE-001"
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "MIS-COPY-MOVE-001",
+      "title": "Assignment always copies",
+      "diagnostic": "Uses both String bindings after assignment without clone or borrow."
+    },
+    {
+      "id": "MIS-BORROW-OWNER-001",
+      "title": "A reference becomes an owner",
+      "diagnostic": "Claims the borrowed value is dropped when the reference leaves scope."
+    },
+    {
+      "id": "MIS-MUT-SHARED-001",
+      "title": "Shared and mutable access can overlap",
+      "diagnostic": "Keeps a shared reference live while mutating the same value."
+    },
+    {
+      "id": "MIS-SLICE-OWNS-001",
+      "title": "A slice owns its elements",
+      "diagnostic": "Returns a slice into a local value or treats a slice as an independent allocation."
+    }
+  ],
+  "diagnostic": [
+    {
+      "id": "ASM-DIAG-MOVE-001",
+      "outcomeId": "OUT-TRACE-MOVE-001",
+      "prompt": "After `let next = label;`, which binding owns the String?",
+      "choices": ["label", "next", "both", "neither"],
+      "answerIndex": 1
+    },
+    {
+      "id": "ASM-DIAG-IMMUT-001",
+      "outcomeId": "OUT-IMMUT-BORROW-001",
+      "prompt": "A function only reads a String and the caller uses it afterward. Which parameter is narrowest?",
+      "choices": ["String", "&str", "&mut String", "Rc<String>"],
+      "answerIndex": 1
+    },
+    {
+      "id": "ASM-DIAG-MUT-001",
+      "outcomeId": "OUT-MUT-BORROW-001",
+      "prompt": "A function appends to caller-owned text without taking it. Which parameter expresses that contract?",
+      "choices": ["String", "&String", "&mut String", "Box<String>"],
+      "answerIndex": 2
+    },
+    {
+      "id": "ASM-DIAG-SCOPE-001",
+      "outcomeId": "OUT-SCOPE-001",
+      "prompt": "May a function return `&String` that points to a String created inside that function?",
+      "choices": ["Always", "Only in release builds", "No, the owner is dropped", "Only with mut"],
+      "answerIndex": 2
+    },
+    {
+      "id": "ASM-DIAG-SLICE-001",
+      "outcomeId": "OUT-SLICE-001",
+      "prompt": "Which return type can expose the first word as a borrowed view?",
+      "choices": ["String", "&str", "Vec<char>", "Box<str>"],
+      "answerIndex": 1
+    }
+  ],
+  "lesson": {
+    "id": "UNIT-OWNERSHIP-001",
+    "title": "Ownership is a changing responsibility",
+    "recallPrompts": [
+      "Name the owner after each statement before reading the explanation.",
+      "State whether the callee needs to read, mutate, or keep the value.",
+      "Predict the compiler error code or successful postcondition before running Cargo."
+    ],
+    "summary": "A non-Copy value has one current owner. A shared reference grants read access, a mutable reference grants exclusive bounded mutation, and a slice borrows a contiguous view. References never keep local owners alive beyond scope.",
+    "workedTrace": [
+      {
+        "line": 1,
+        "binding": "label",
+        "state": "owner",
+        "explanation": "String allocation is owned by label."
+      },
+      {
+        "line": 2,
+        "binding": "next",
+        "state": "owner",
+        "explanation": "Assignment moves the non-Copy String to next."
+      },
+      {
+        "line": 2,
+        "binding": "label",
+        "state": "moved",
+        "explanation": "label remains a name but is no longer usable."
+      },
+      {
+        "line": 3,
+        "binding": "view",
+        "state": "shared-borrow",
+        "explanation": "view reads next without taking ownership."
+      },
+      {
+        "line": 4,
+        "binding": "view",
+        "state": "ended",
+        "explanation": "The borrow ends after its last use."
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "EX-OWNERSHIP-COMPLETION-001",
+      "kind": "completion",
+      "outcomeIds": ["OUT-TRACE-MOVE-001", "OUT-IMMUT-BORROW-001"],
+      "primaryOutcomeIds": ["OUT-IMMUT-BORROW-001"],
+      "supportingOutcomeIds": ["OUT-TRACE-MOVE-001"],
+      "variantGroup": "VG-RETAINED-CALLER-001",
+      "title": "Complete the retained-caller signature",
+      "prompt": "Replace the missing parameter type so `measure` reads the text through the narrowest borrow and the caller can still print it.",
+      "starter": "fn measure(value: /* missing */) -> usize { value.len() }\n\nfn main() {\n    let label = String::from(\"rust\");\n    let length = measure(/* pass label */);\n    println!(\"{label}: {length}\");\n}",
+      "solution": "fn measure(value: &str) -> usize { value.len() }\n\nfn main() {\n    let label = String::from(\"rust\");\n    let length = measure(&label);\n    println!(\"{label}: {length}\");\n}"
+    },
+    {
+      "id": "EX-OWNERSHIP-INDEPENDENT-001",
+      "kind": "independent",
+      "outcomeIds": ["OUT-IMMUT-BORROW-001"],
+      "primaryOutcomeIds": ["OUT-IMMUT-BORROW-001"],
+      "supportingOutcomeIds": [],
+      "variantGroup": "VG-RETAINED-CALLER-001",
+      "title": "Inspect a job name",
+      "prompt": "Implement `job_len` without cloning or taking the caller's String; accept the narrowest read-only borrow.",
+      "starter": "fn job_len(job: &str) -> usize { todo!() }\n\nfn main() {\n    let job = String::from(\"compile\");\n    assert_eq!(job_len(&job), 7);\n    println!(\"{job}\");\n}",
+      "solution": "fn job_len(job: &str) -> usize { job.len() }\n\nfn main() {\n    let job = String::from(\"compile\");\n    assert_eq!(job_len(&job), 7);\n    println!(\"{job}\");\n}"
+    },
+    {
+      "id": "EX-OWNERSHIP-INDEPENDENT-002",
+      "kind": "independent",
+      "outcomeIds": ["OUT-IMMUT-BORROW-001"],
+      "primaryOutcomeIds": ["OUT-IMMUT-BORROW-001"],
+      "supportingOutcomeIds": [],
+      "variantGroup": "VG-RETAINED-CALLER-001",
+      "title": "Inspect a table name",
+      "prompt": "Implement `table_len` so a caller can append to its String after the call.",
+      "starter": "fn table_len(table: &str) -> usize { todo!() }\n\nfn main() {\n    let mut table = String::from(\"users\");\n    assert_eq!(table_len(&table), 5);\n    table.push_str(\"_archive\");\n    println!(\"{table}\");\n}",
+      "solution": "fn table_len(table: &str) -> usize { table.len() }\n\nfn main() {\n    let mut table = String::from(\"users\");\n    assert_eq!(table_len(&table), 5);\n    table.push_str(\"_archive\");\n    println!(\"{table}\");\n}"
+    },
+    {
+      "id": "EX-OWNERSHIP-MIXED-001",
+      "kind": "mixed",
+      "outcomeIds": ["OUT-TRACE-MOVE-001", "OUT-IMMUT-BORROW-001", "OUT-MUT-BORROW-001"],
+      "primaryOutcomeIds": ["OUT-TRACE-MOVE-001", "OUT-IMMUT-BORROW-001", "OUT-MUT-BORROW-001"],
+      "supportingOutcomeIds": [],
+      "variantGroup": "VG-STRATEGY-001",
+      "title": "Choose move, shared borrow, or mutable borrow",
+      "prompt": "Choose the parameter contract from the required postcondition; the item title does not name the strategy. Prefer &str over &String for read-only access.",
+      "starter": "fn normalize(value: /* choose String, &str, or &mut String */) {\n    /* make the smallest edit required by the assigned postcondition */\n}\n\nfn main() {\n    let mut value = String::from(\" Rust \" );\n    normalize(/* pass value */);\n    println!(\"{value}\");\n}",
+      "solution": "Select String, &str, or &mut String from the supplied postcondition, then pass value, &value, or &mut value accordingly. A shared read borrow should be &str: deref coercion lets callers pass &String, and the function accepts every string-like view."
+    },
+    {
+      "id": "EX-OWNERSHIP-CSV-001",
+      "kind": "transfer",
+      "outcomeIds": ["OUT-MUT-BORROW-001", "OUT-SLICE-001"],
+      "primaryOutcomeIds": ["OUT-MUT-BORROW-001", "OUT-SLICE-001"],
+      "supportingOutcomeIds": [],
+      "variantGroup": "VG-DATA-TRANSFER-001",
+      "title": "Normalize a CSV header in place",
+      "prompt": "Trim a caller-owned CSV header in place, then return its first column as a borrowed slice without allocating a second String.",
+      "starter": "fn first_column(header: &mut String) -> &str { todo!() }\n\nfn main() {\n    let mut header = String::from(\" name,age \");\n    assert_eq!(first_column(&mut header), \"name\");\n}",
+      "solution": "fn first_column(header: &mut String) -> &str {\n    header.truncate(header.find(',').unwrap_or(header.len()));\n    let start = header.len() - header.trim_start().len();\n    header.drain(..start);\n    header.truncate(header.trim_end().len());\n    header.as_str()\n}\n\nfn main() {\n    let mut header = String::from(\" name,age \");\n    assert_eq!(first_column(&mut header), \"name\");\n}"
+    }
+  ],
+  "hintLadder": [
+    {
+      "level": 1,
+      "requires": "commit the desired caller postcondition",
+      "text": "Who must own the value after the call?",
+      "solutionReveal": false
+    },
+    {
+      "level": 2,
+      "requires": "name read, mutate, or keep",
+      "text": "Does the callee only read, mutate temporarily, or keep the value?",
+      "solutionReveal": false
+    },
+    {
+      "level": 3,
+      "requires": "write an owner trace",
+      "text": "Mark the owner before the call, during the parameter binding, and after return.",
+      "solutionReveal": false
+    },
+    {
+      "level": 4,
+      "requires": "predict one compiler rule",
+      "text": "A shared reference reads without transfer; a mutable reference is exclusive while live.",
+      "solutionReveal": false
+    },
+    {
+      "level": 5,
+      "requires": "attempt a signature",
+      "text": "Change only the parameter type before changing the function body.",
+      "solutionReveal": false
+    },
+    {
+      "level": 6,
+      "requires": "run one compiler check",
+      "text": "Use the primary source span to decide whether the owner moved or a borrow conflicts.",
+      "solutionReveal": false
+    },
+    {
+      "level": 7,
+      "requires": "declare full reveal",
+      "text": "Reveal the reviewed solution and schedule a fresh variant in the same outcome group.",
+      "solutionReveal": true
+    }
+  ],
+  "reviewIntervalsDays": [1, 3, 7, 21]
+}

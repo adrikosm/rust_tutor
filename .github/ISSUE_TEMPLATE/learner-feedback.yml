@@ -1,0 +1,38 @@
+name: Learner transfer and friction feedback
+description: Record observed transfer, support, and product friction without treating satisfaction as mastery.
+title: "[feedback] "
+labels: ["learner-feedback"]
+body:
+  - type: input
+    id: context
+    attributes:
+      label: Item/outcome/context IDs
+    validations: { required: true }
+  - type: dropdown
+    id: support
+    attributes:
+      label: Highest support used
+      options: [none, official-docs, compiler-only, authored-hint, solution-reveal]
+    validations: { required: true }
+  - type: textarea
+    id: delayed
+    attributes:
+      label: Delayed or changed-context transfer evidence
+      description: What could or could not be done later or in a fresh context?
+    validations: { required: true }
+  - type: textarea
+    id: error
+    attributes:
+      label: Error, correction, and future cue
+    validations: { required: true }
+  - type: textarea
+    id: friction
+    attributes:
+      label: Product/content friction
+      description: Separate unclear UI/content/tooling from the learner's reasoning error.
+    validations: { required: true }
+  - type: textarea
+    id: satisfaction
+    attributes:
+      label: Optional reaction or feature request
+      description: Useful context, but never mastery evidence.

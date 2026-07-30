@@ -1,0 +1,119 @@
+{
+  "bootstrap": {
+    "capabilities": {
+      "compiler": true,
+      "database": true,
+      "offline": true
+    },
+    "content": {
+      "checksum": "519bd647c327fbd6d1fd46a164e850effc27abcc353d8db3fdb640166f114190",
+      "graphReleaseId": "KF-v0",
+      "releaseId": "REL-OWNERSHIP-SLICE-001",
+      "status": "ready"
+    },
+    "goals": {
+      "count": 5,
+      "status": "ready"
+    },
+    "profile": {
+      "count": 1,
+      "status": "ready"
+    },
+    "toolchain": {
+      "cargo": true,
+      "clippy": true,
+      "rust_analyzer": true,
+      "rust_analyzer_remediation": null,
+      "rustc": true,
+      "rustfmt": true,
+      "target": "fixture-target",
+      "versions": {}
+    }
+  },
+  "error": {
+    "code": "invalid_request",
+    "details": {
+      "field": "example"
+    },
+    "message": "Request did not satisfy the API contract.",
+    "request_id": "REQ-FIXTURE-001",
+    "retryable": false
+  },
+  "evaluation": {
+    "cases": [
+      {
+        "actual": "42\n",
+        "durationMs": 10,
+        "expected": "42\n",
+        "id": "CASE-FIXTURE-001",
+        "input": "",
+        "status": "ACCEPTED",
+        "stderr": "",
+        "stdout": "42\n"
+      }
+    ],
+    "diagnostics": [
+      {
+        "children": [
+          {
+            "message": "note text",
+            "rendered": null,
+            "severity": "note"
+          }
+        ],
+        "code": "unused_variables",
+        "message": "unused variable: `x`",
+        "rendered": "warning: unused variable",
+        "severity": "warning",
+        "spans": [
+          {
+            "columnEnd": 6,
+            "columnStart": 5,
+            "file": "src/main.rs",
+            "label": "help: prefix with underscore",
+            "lineEnd": 1,
+            "lineStart": 1,
+            "primary": true
+          }
+        ],
+        "tool": "rustc"
+      }
+    ],
+    "durationMs": 42,
+    "exitCode": 0,
+    "formattedFiles": {},
+    "outputChunks": [
+      {
+        "channel": "test",
+        "text": "running 1 test\n"
+      }
+    ],
+    "replay": {
+      "action": "test",
+      "contentHash": "377abae1d4523366424a66c736f0a8a20c279e7f556bd95e3c241a11b24237d7",
+      "network": "denied-by-macos-sandbox-profile",
+      "toolchain": {}
+    },
+    "runId": "RUN-FIXTURE-001",
+    "status": "ACCEPTED",
+    "stderr": "",
+    "stdout": "running 1 test\n"
+  },
+  "health": {
+    "api_version": "v1",
+    "db_status": "not_configured",
+    "service_version": "0.1.0",
+    "status": "degraded",
+    "toolchain": {
+      "cargo": true,
+      "clippy": true,
+      "rust_analyzer": true,
+      "rust_analyzer_remediation": null,
+      "rustc": true,
+      "rustfmt": true,
+      "target": "fixture-target",
+      "versions": {}
+    }
+  },
+  "schemaVersion": 1
+}

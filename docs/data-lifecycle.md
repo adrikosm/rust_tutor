@@ -1,0 +1,9 @@
+# Export, backup, import, reset, and recovery
+
+Settings can download deterministic portable JSON with a manifest, schema, SHA-256 checksum, row counts, stable ordering, content versions, and an exclusion/redaction list. Tokens, evaluator logs, environment details, temporary/cache data, and machine paths are excluded. Imports are capped at 1 MiB uncompressed JSON, reject unknown schemas, malformed JSON, traversal/NUL/path fields, sensitive fields, and checksum mismatch before any canonical write.
+
+Run a dry-run first. Apply requires the dry-run checksum and the exact phrase `APPLY VERIFIED IMPORT`; it creates an online-consistent SQLite `VACUUM INTO` backup, imports in one transaction with stable-ID idempotency, checks foreign keys, then rebuilds projections. Scoped resets require a named module/lesson/all-progress scope, create a verified backup, and append a reset event; audit rows are not deleted.
+
+Backups are opened read-only, checked with `PRAGMA integrity_check`, then SHA-256 hashed. Schema upgrades also back up existing older schemas before migration. If the database is corrupt, preserve the database and WAL/SHM sidecars, do not create a blank replacement, attempt read-only export, and restore only a checksum-verified backup. The automated drill covers backup, corrupted-copy rejection, restore, row-count preservation, and projection replay.
+
+For a best-effort read-only extraction from a preserved database copy, run `cargo run --bin recovery -- /absolute/preserved-copy.sqlite3 /absolute/new-recovery.json`. The command refuses relative paths, an existing output, or a source/output collision. It opens SQLite read-only with `create_if_missing(false)`, records the integrity result, salvages each core table independently, and reports per-table failures. Its JSON is inspection evidence—not a verified portable import—and it never repairs, migrates, replaces, or deletes the source.

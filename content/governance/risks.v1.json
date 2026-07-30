@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-07-18",
+  "risks": [
+    {
+      "id": "R01",
+      "title": "Mastery theater",
+      "likelihood": "high",
+      "impact": "critical",
+      "trigger": "Mastery rises from completion or repeated identical items.",
+      "mitigation": "Require visible unassisted, delayed, and transfer evidence; block G5."
+    },
+    {
+      "id": "R02",
+      "title": "Wrong graph granularity",
+      "likelihood": "medium",
+      "impact": "high",
+      "trigger": "One node hides distinct errors or adjacent nodes never differ in evidence/remediation.",
+      "mitigation": "Version the graph hypothesis; split with new IDs after evidence and never repurpose IDs."
+    },
+    {
+      "id": "R03",
+      "title": "Stale Rust or library guidance",
+      "likelihood": "high",
+      "impact": "high",
+      "trigger": "Toolchain/source is older than the freshness window or compiler behavior changes.",
+      "mitigation": "Pin releases, run quarterly review, and retain golden compiler fixtures."
+    },
+    {
+      "id": "R04",
+      "title": "Copyright or license breach",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Content lacks provenance/use decision or copies incompatible material.",
+      "mitigation": "Original/link-only default, mandatory license audit; block G7/G9."
+    },
+    {
+      "id": "R05",
+      "title": "Native runner escape or overclaim",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Untrusted code reaches host resources or native execution is called isolated.",
+      "mitigation": "Curated manifests, strict limits, honest warning, no hostile/multi-user exposure; block G4."
+    },
+    {
+      "id": "R06",
+      "title": "Hostile website reaches localhost",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Origin, host, token, or custom-header enforcement can be bypassed.",
+      "mitigation": "Same-origin production, exact checks, safe GETs, and adversarial tests."
+    },
+    {
+      "id": "R07",
+      "title": "Migration, import, or reset loses history",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "A migration/import partially applies or recovery requires silent reset.",
+      "mitigation": "Backup, staged validation, transaction, integrity and restore drills; block G3/G9."
+    },
+    {
+      "id": "R08",
+      "title": "Multi-skill blame",
+      "likelihood": "medium",
+      "impact": "high",
+      "trigger": "One item failure downgrades unrelated outcomes.",
+      "mitigation": "Primary/supporting mappings and rubric-step evidence; no blanket tag update."
+    },
+    {
+      "id": "R09",
+      "title": "Variant inequivalence",
+      "likelihood": "medium",
+      "impact": "high",
+      "trigger": "Seeded forms differ materially in difficulty or required skills.",
+      "mitigation": "Fixed seeds, versioned forms, human review, split inequivalent variants."
+    },
+    {
+      "id": "R10",
+      "title": "Hint clicking or harmful help avoidance",
+      "likelihood": "high",
+      "impact": "medium",
+      "trigger": "Hints become passive reveals or the UI rewards remaining stuck.",
+      "mitigation": "Require a small action between levels, allow bypass, and schedule fresh proof after reveal."
+    },
+    {
+      "id": "R11",
+      "title": "Review overload",
+      "likelihood": "high",
+      "impact": "high",
+      "trigger": "Due work exceeds the daily cap or hides overflow.",
+      "mitigation": "Daily cap, visible overflow, goal horizon, transparent intervals."
+    },
+    {
+      "id": "R12",
+      "title": "Premature interleaving",
+      "likelihood": "medium",
+      "impact": "high",
+      "trigger": "Confusable topics are mixed before initial acquisition readiness.",
+      "mitigation": "Block initial instruction; interleave reviewed siblings only after readiness."
+    },
+    {
+      "id": "R13",
+      "title": "Editor or graph excludes assistive technology",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Core information/actions require pointer, color, canvas, or inaccessible Monaco behavior.",
+      "mitigation": "Textarea/list/tree alternatives and manual assistive-tech gate; block G8."
+    },
+    {
+      "id": "R14",
+      "title": "Offline claim hides network requests",
+      "likelihood": "medium",
+      "impact": "high",
+      "trigger": "Runtime fetches unbundled assets, analytics, or remote content.",
+      "mitigation": "Bundle assets, CSP, and runtime network test; block G8."
+    },
+    {
+      "id": "R15",
+      "title": "Architecture bloat delays learning proof",
+      "likelihood": "high",
+      "impact": "high",
+      "trigger": "New service, crate, store, or infrastructure lacks a demonstrated boundary.",
+      "mitigation": "One SPA/service/crate/SQLite path and Ponytail review."
+    },
+    {
+      "id": "R16",
+      "title": "Content volume overwhelms quality",
+      "likelihood": "high",
+      "impact": "high",
+      "trigger": "Breadth grows before the golden slice and validators pass.",
+      "mitigation": "Golden slice, templates, coverage, source and technical review."
+    },
+    {
+      "id": "R17",
+      "title": "LLM dependency enters tutoring",
+      "likelihood": "medium",
+      "impact": "high",
+      "trigger": "Runtime tutoring or mastery depends on nondeterministic model output.",
+      "mitigation": "Deterministic core, authored hints, official-doc workflow; LLM cannot award mastery."
+    },
+    {
+      "id": "R18",
+      "title": "Gamification replaces learning",
+      "likelihood": "medium",
+      "impact": "medium",
+      "trigger": "Streak/points affect recommendation or mastery.",
+      "mitigation": "Optimize delayed transfer and recurrence; keep streak informational only."
+    },
+    {
+      "id": "R19",
+      "title": "Confidence mistaken for competence",
+      "likelihood": "high",
+      "impact": "high",
+      "trigger": "Confidence edits after feedback or directly changes mastery.",
+      "mitigation": "Commit before feedback, store separately, calibrate only with sufficient evidence."
+    },
+    {
+      "id": "R20",
+      "title": "Dependency or runtime compromise",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Unpinned/unreviewed dependency or evaluator artifact enters release.",
+      "mitigation": "Lockfiles, audits, SBOM, pinned reviewed releases and residual-risk record."
+    },
+    {
+      "id": "R21",
+      "title": "Source prompt injection",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Embedded source instructions influence tools or promotion.",
+      "mitigation": "Treat raw as untrusted, never execute commands, hash/license and human review; block GW1/GF2."
+    },
+    {
+      "id": "R22",
+      "title": "Visualizer inference becomes truth",
+      "likelihood": "high",
+      "impact": "critical",
+      "trigger": "Generated link/edge is imported without typed rationale and provenance.",
+      "mitigation": "Quarantine inference and require typed reviewed promotion; block GF2."
+    },
+    {
+      "id": "R23",
+      "title": "Parity scope drifts into proprietary content",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "A stage copies app/paid/community/unlicensed material.",
+      "mitigation": "Pin/audit definitions, preserve notices, independently author tests; block G11."
+    },
+    {
+      "id": "R24",
+      "title": "Workbench broadens host access",
+      "likelihood": "medium",
+      "impact": "critical",
+      "trigger": "Arbitrary roots, methods, terminal, extensions, or AI edits become reachable.",
+      "mitigation": "Curated roots, method allowlist, bounded lifecycle, adversarial E06 tests."
+    },
+    {
+      "id": "R25",
+      "title": "Course volume becomes endless prerequisite",
+      "likelihood": "high",
+      "impact": "high",
+      "trigger": "Platform release waits for all content or quality gates weaken for calendar reasons.",
+      "mitigation": "Separate platform/core/catalog gates, mastery skips, one-stage WIP, required/elective labels."
+    }
+  ]
+}

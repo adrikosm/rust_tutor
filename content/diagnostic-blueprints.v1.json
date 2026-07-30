@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "DIA-REL-2026-07-21-001",
+  "modelVersion": "placement-v1",
+  "minimumPerformanceItemsPerDomain": 2,
+  "packets": [
+    {
+      "id": "DIA-RUST-000",
+      "domain": "rust",
+      "title": "Rust foundations",
+      "items": [
+        {
+          "id": "DIA-RUST-000-01",
+          "format": "trace",
+          "prompt": "Given `let x = 5; let x = x + 1; let y = if x > 3 { \"big\" } else { \"small\" };`, what value is bound to `y`?",
+          "outcomeId": "OUT-RUST-TRACE-EXPRESSION-VALUE-001",
+          "placementDecision": "foundations_ready",
+          "choices": [
+            "\"big\"",
+            "\"small\"",
+            "6",
+            "It does not compile because `x` is declared twice"
+          ],
+          "answerIndex": 0,
+          "justificationRequired": false,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-RUST-000-02",
+          "format": "design_choice",
+          "prompt": "You must run a block once for every element of a fixed array, reading each element. Which construct fits with the least room for an off-by-one or bounds error?",
+          "outcomeId": "OUT-RUST-SELECT-CONTROL-FLOW-001",
+          "placementDecision": "foundations_ready",
+          "choices": [
+            "A `while` loop with a manual index counter",
+            "A `for item in &array` loop",
+            "A `loop` with a manual `break`",
+            "Recursion over a re-sliced tail"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": false,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-RUST-001",
+      "domain": "rust",
+      "title": "Toolchain and compiler",
+      "items": [
+        {
+          "id": "DIA-RUST-001-01",
+          "format": "repair_decision",
+          "prompt": "A local crate compiles with an older rustc than `rustc --version` in your shell. Which first check resolves the active-toolchain ambiguity without changing code?",
+          "outcomeId": "OUT-RUST-VERIFY-ACTIVE-TOOLCHAIN-001",
+          "placementDecision": "rust_toolchain_ready",
+          "choices": [
+            "Delete Cargo.lock",
+            "Run `cargo +stable -vV` and `rustup show active-toolchain` in the crate directory",
+            "Add a build script",
+            "Use nightly everywhere"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": false,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-RUST-001-02",
+          "format": "compiler_evidence",
+          "prompt": "Cargo reports a rustc error with primary and secondary spans. Which evidence should drive the first repair hypothesis?",
+          "outcomeId": "OUT-LEARN-DOC-DIAGNOSE-001",
+          "placementDecision": "compiler_guided_debugging_ready",
+          "choices": [
+            "Only the last rendered line",
+            "A random web answer",
+            "The error code, primary span, related span, and the smallest reproducing command",
+            "A dependency upgrade before reading the diagnostic"
+          ],
+          "answerIndex": 2,
+          "justificationRequired": false,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-RUST-002",
+      "domain": "rust",
+      "title": "Ownership, types, and lifetimes",
+      "items": [
+        {
+          "id": "DIA-RUST-002-01",
+          "format": "trace",
+          "prompt": "After `let b = a;` where `a: String`, which binding owns the allocation and may be used?",
+          "outcomeId": "OUT-RUST-TRACE-OWNERSHIP-001",
+          "placementDecision": "ownership_trace_ready",
+          "choices": ["Only b", "Only a", "Both a and b", "Neither binding"],
+          "answerIndex": 0,
+          "justificationRequired": false,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-RUST-002-02",
+          "format": "design_choice",
+          "prompt": "A function reads a String while the caller must use it later. Which parameter contract is the narrowest fit?",
+          "outcomeId": "OUT-RUST-SELECT-PARAMETER-MODE-001",
+          "placementDecision": "borrow_boundary_ready",
+          "choices": ["String", "&mut String", "Box<String>", "&str"],
+          "answerIndex": 3,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-RUST-003-01",
+          "format": "type_contract",
+          "prompt": "Which implementation proves a trait contract at compile time without a runtime type switch?",
+          "outcomeId": "OUT-RUST-IMPLEMENT-TRAIT-CONTRACT-001",
+          "placementDecision": "traits_ready",
+          "choices": [
+            "A String tag naming the concrete type",
+            "An unchecked cast",
+            "A generic function bounded by the required trait",
+            "A global registry for one implementation"
+          ],
+          "answerIndex": 2,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-RUST-003-02",
+          "format": "relationship_annotation",
+          "prompt": "A function returns one of two input string slices. What must a lifetime annotation express?",
+          "outcomeId": "OUT-RUST-ANNOTATE-LIFETIME-RELATION-001",
+          "placementDecision": "lifetimes_ready",
+          "choices": [
+            "The returned bytes become static",
+            "The returned reference cannot outlive the relevant input references",
+            "The function allocates a String",
+            "The borrow checker is disabled"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": false,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-RUST-004",
+      "domain": "rust",
+      "title": "Errors and testing",
+      "items": [
+        {
+          "id": "DIA-RUST-004-01",
+          "format": "test_design",
+          "prompt": "Which test is strongest evidence for a parser that must reject a truncated record?",
+          "outcomeId": "OUT-RUST-DESIGN-TEST-ORACLE-001",
+          "placementDecision": "test_oracle_ready",
+          "choices": [
+            "A happy-path fixture only",
+            "A snapshot of debug formatting",
+            "A test that accepts any error",
+            "A minimal truncated fixture asserting the typed error and no partial output"
+          ],
+          "answerIndex": 3,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-RUST-004-02",
+          "format": "error_boundary",
+          "prompt": "Where should a recoverable file parse failure become user-facing context?",
+          "outcomeId": "OUT-RUST-DESIGN-ERROR-BOUNDARY-001",
+          "placementDecision": "error_boundaries_ready",
+          "choices": [
+            "At the application boundary after lower layers preserve the typed cause",
+            "As a panic in the byte decoder",
+            "By discarding the cause immediately",
+            "By returning an empty result"
+          ],
+          "answerIndex": 0,
+          "justificationRequired": false,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-ALG-001",
+      "domain": "algorithms",
+      "title": "Complexity and invariant selection",
+      "items": [
+        {
+          "id": "DIA-ALG-001-01",
+          "format": "complexity_justification",
+          "prompt": "A loop visits every element once and keeps a fixed number of counters. Which bound is justified?",
+          "outcomeId": "OUT-ALG-ANALYZE-COMPLEXITY-001",
+          "placementDecision": "complexity_ready",
+          "choices": [
+            "O(log n) time",
+            "O(n²) time",
+            "O(n) time and O(1) auxiliary space",
+            "O(n) auxiliary space"
+          ],
+          "answerIndex": 2,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-ALG-002-01",
+          "format": "pattern_selection",
+          "prompt": "You need the longest contiguous range satisfying a monotone budget. Which baseline pattern should you test first?",
+          "outcomeId": "OUT-ALG-SELECT-RANGE-PATTERN-001",
+          "placementDecision": "range_pattern_ready",
+          "choices": [
+            "Union-find",
+            "Sliding window with an explicit validity invariant",
+            "Topological sort",
+            "Trie"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": true,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-SQL-001",
+      "domain": "data_engineering",
+      "title": "SQL and dimensional modeling fast track",
+      "items": [
+        {
+          "id": "DIA-SQL-001-01",
+          "format": "sql_reasoning",
+          "prompt": "A concurrent history appears inconsistent. Which analysis can distinguish a real isolation violation from observation timing?",
+          "outcomeId": "OUT-DATA-TX-HISTORY-PROVE-001",
+          "placementDecision": "advanced_sql_optional",
+          "choices": [
+            "Sort final rows by primary key",
+            "Increase connection pool size",
+            "Retry until the result looks stable",
+            "Record transaction boundaries and construct a dependency/history proof"
+          ],
+          "answerIndex": 3,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-MODEL-001-01",
+          "format": "artifact_review",
+          "prompt": "Which artifact best proves a durable analytics model before optimizing it?",
+          "outcomeId": "OUT-PRJ-PULSE-01",
+          "placementDecision": "data_modeling_optional",
+          "choices": [
+            "Grain, keys, constraints, fixture facts, and explicit schema tests",
+            "A dashboard screenshot",
+            "A denormalized table without declared grain",
+            "A benchmark with no correctness oracle"
+          ],
+          "answerIndex": 0,
+          "justificationRequired": true,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-DS-001",
+      "domain": "data_engineering",
+      "title": "Streaming and distributed failure",
+      "items": [
+        {
+          "id": "DIA-DS-001-01",
+          "format": "failure_scenario",
+          "prompt": "A duplicate arrives after an event-time window emitted, but before allowed lateness closes. What must a correct design specify?",
+          "outcomeId": "OUT-DATA-EVENT-REVISE-001",
+          "placementDecision": "streaming_optional",
+          "choices": [
+            "Drop every late event",
+            "Identity/dedup state, watermark policy, revision semantics, and sink idempotency",
+            "Use processing time and hope arrival order is stable",
+            "Keep unbounded state forever"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-DS-002-01",
+          "format": "recovery_scenario",
+          "prompt": "A worker fails after external output but before its checkpoint commits. Which proof addresses partial failure?",
+          "outcomeId": "OUT-DATA-FAILURE-PROVE-001",
+          "placementDecision": "distributed_recovery_optional",
+          "choices": [
+            "Restart manually and compare one row",
+            "Disable checkpoints",
+            "Inject the crash at the cut-point and prove replay plus sink idempotency/transactionality",
+            "Assume at-most-once delivery"
+          ],
+          "answerIndex": 2,
+          "justificationRequired": true,
+          "profileOnly": false
+        }
+      ]
+    },
+    {
+      "id": "DIA-IND-001",
+      "domain": "independent_debugging",
+      "title": "Independent debugging and help behavior",
+      "items": [
+        {
+          "id": "DIA-IND-001-01",
+          "format": "behavior_sequence",
+          "prompt": "After a failed test, which sequence produces the strongest independent evidence?",
+          "outcomeId": "OUT-LEARN-HYPOTHESIS-LOOP-001",
+          "placementDecision": "independent_debugging_ready",
+          "choices": [
+            "Reveal the solution immediately",
+            "State a hypothesis, run a discriminating check, inspect compiler/tests/docs, revise, then request bounded help if still blocked",
+            "Change several unrelated lines and rerun",
+            "Ask an assistant to rewrite the file without recording support"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-IND-002-01",
+          "format": "diagnostic_reading",
+          "prompt": "A test fails with a five-line assertion diff and a passing sibling test. Which reading of the evidence best isolates the defect before any edit?",
+          "outcomeId": "OUT-LEARN-DIAGNOSTIC-READING-001",
+          "placementDecision": "independent_debugging_ready",
+          "choices": [
+            "Rerun both tests until the diff changes",
+            "Compare the failing diff against the passing sibling to isolate the differing input and code path",
+            "Delete the failing test",
+            "Rewrite the module from scratch"
+          ],
+          "answerIndex": 1,
+          "justificationRequired": true,
+          "profileOnly": false
+        },
+        {
+          "id": "DIA-IND-001-02",
+          "format": "self_report",
+          "prompt": "How comfortable do you currently feel debugging Rust without an LLM?",
+          "outcomeId": "OUT-LEARN-HYPOTHESIS-LOOP-001",
+          "placementDecision": "profile_context_only",
+          "choices": ["Not yet", "Sometimes", "Usually", "Very comfortable"],
+          "answerIndex": 3,
+          "justificationRequired": false,
+          "profileOnly": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "profileId": "LEARNER-ANDREAS-001",
+  "goals": [
+    {
+      "id": "GOAL-RUST-PRODUCTION-001",
+      "rank": 1,
+      "title": "Ship production-quality Rust systems",
+      "observable": "Release PULSE with reproducible correctness, recovery, security, and operational evidence.",
+      "outcomeIds": ["OUT-PRJ-PULSE-RELEASE-001"],
+      "projectIds": ["PRJ-PULSE"],
+      "status": "active"
+    },
+    {
+      "id": "GOAL-DATA-SYSTEMS-001",
+      "rank": 2,
+      "title": "Build reliable data infrastructure in Rust",
+      "observable": "Release QUAY only after PULSE and prove bounded Arrow/Parquet/query/streaming behavior.",
+      "outcomeIds": ["OUT-PRJ-QUAY-RELEASE-001"],
+      "projectIds": ["PRJ-QUAY"],
+      "status": "active"
+    },
+    {
+      "id": "GOAL-DISTRIBUTED-REASONING-001",
+      "rank": 3,
+      "title": "Reason explicitly about distributed failure",
+      "observable": "Pass fresh design and failure-mode assessments with invariants, SLOs, recovery boundaries, and residual risks.",
+      "outcomeIds": ["OUT-DATA-DIST-CONSISTENCY-001"],
+      "projectIds": ["PRJ-QUAY"],
+      "status": "active"
+    },
+    {
+      "id": "GOAL-ALGORITHMS-001",
+      "rank": 4,
+      "title": "Select and prove algorithm patterns independently",
+      "observable": "Solve delayed mixed items and transfer the selected invariants into PULSE, QUAY, and TESSERA stages without solution support.",
+      "outcomeIds": ["OUT-ALG-SELECT-SORT-SEARCH-001"],
+      "projectIds": ["PRJ-PULSE", "PRJ-QUAY", "PRJ-TESSERA"],
+      "status": "active"
+    },
+    {
+      "id": "GOAL-PUBLIC-PROOF-001",
+      "rank": 5,
+      "title": "Produce inspectable public engineering proof",
+      "observable": "Publish versioned design, test, benchmark, security, and operations artifacts for each released flagship without exposing private source material.",
+      "outcomeIds": ["OUT-PRJ-TESSERA-RELEASE-001"],
+      "projectIds": ["PRJ-PULSE", "PRJ-QUAY", "PRJ-TESSERA"],
+      "status": "active"
+    }
+  ]
+}

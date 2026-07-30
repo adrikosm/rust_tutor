@@ -1,0 +1,128 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "rust-tutor-0.1.0-beta",
+  "documentNamespace": "https://rust-tutor.local/sbom/0.1.0-beta/2026-07-18",
+  "creationInfo": {
+    "created": "2026-07-18T00:00:00Z",
+    "creators": ["Tool: Codex release inventory"]
+  },
+  "packages": [
+    {
+      "name": "rust-tutor-service",
+      "SPDXID": "SPDXRef-rust-service",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "axum",
+      "SPDXID": "SPDXRef-axum",
+      "versionInfo": "0.8.9",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "tokio",
+      "SPDXID": "SPDXRef-tokio",
+      "versionInfo": "1.53.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "sqlx",
+      "SPDXID": "SPDXRef-sqlx",
+      "versionInfo": "0.9.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "serde",
+      "SPDXID": "SPDXRef-serde",
+      "versionInfo": "1.0.228",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "serde_json",
+      "SPDXID": "SPDXRef-serde-json",
+      "versionInfo": "1.0.150",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "react",
+      "SPDXID": "SPDXRef-react",
+      "versionInfo": "19.2.7",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "@tanstack/react-router",
+      "SPDXID": "SPDXRef-tanstack-router",
+      "versionInfo": "1.170.18",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "@tanstack/react-query",
+      "SPDXID": "SPDXRef-tanstack-query",
+      "versionInfo": "5.101.2",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "monaco-editor",
+      "SPDXID": "SPDXRef-monaco",
+      "versionInfo": "0.55.1",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "zod",
+      "SPDXID": "SPDXRef-zod",
+      "versionInfo": "4.4.3",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "rust-tutor-content",
+      "SPDXID": "SPDXRef-content",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "licenseConcluded": "MIT",
+      "filesAnalyzed": false,
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "377abae1d4523366424a66c736f0a8a20c279e7f556bd95e3c241a11b24237d7"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-rust-service"
+    },
+    {
+      "spdxElementId": "SPDXRef-rust-service",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-content"
+    }
+  ]
+}

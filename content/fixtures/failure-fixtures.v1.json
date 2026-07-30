@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    { "id": "FAIL-ID-DUPLICATE", "mutation": "duplicate_id", "expectedCode": "duplicate_id" },
+    { "id": "FAIL-ID-PREFIX", "mutation": "invalid_prefix", "expectedCode": "invalid_id" },
+    { "id": "FAIL-DANGLING", "mutation": "dangling_edge", "expectedCode": "dangling_edge" },
+    { "id": "FAIL-ORPHAN", "mutation": "orphan_node", "expectedCode": "orphan_node" },
+    { "id": "FAIL-CYCLE", "mutation": "prerequisite_cycle", "expectedCode": "prerequisite_cycle" },
+    { "id": "FAIL-LICENSE", "mutation": "missing_license", "expectedCode": "source_license" },
+    {
+      "id": "FAIL-ASSESSMENT",
+      "mutation": "missing_independent_assessment",
+      "expectedCode": "assessment_coverage"
+    },
+    {
+      "id": "FAIL-ITEM-VERSION",
+      "mutation": "overwrite_item_version",
+      "expectedCode": "immutable_item"
+    },
+    { "id": "FAIL-HTML", "mutation": "raw_html_injection", "expectedCode": "unsafe_markdown" },
+    {
+      "id": "FAIL-STRUCTURAL-EDGE",
+      "mutation": "authored_generated_edge",
+      "expectedCode": "duplicate_structural_truth"
+    },
+    {
+      "id": "FAIL-MATERIAL-SOURCE",
+      "mutation": "missing_material_source",
+      "expectedCode": "required_field"
+    },
+    {
+      "id": "FAIL-MATERIAL-OUTCOME",
+      "mutation": "dangling_material_outcome",
+      "expectedCode": "dangling_outcome"
+    },
+    {
+      "id": "FAIL-SOLUTION-HINT",
+      "mutation": "unflagged_solution_hint",
+      "expectedCode": "unflagged_solution_hint"
+    },
+    {
+      "id": "FAIL-MILESTONE-EVIDENCE",
+      "mutation": "missing_milestone_evidence",
+      "expectedCode": "milestone_evidence"
+    },
+    {
+      "id": "FAIL-EDGE-KIND-PAIR",
+      "mutation": "invalid_edge_kind_pair",
+      "expectedCode": "invalid_edge_kind_pair"
+    },
+    {
+      "id": "FAIL-FRONTMATTER",
+      "mutation": "missing_frontmatter_field",
+      "expectedCode": "frontmatter"
+    },
+    {
+      "id": "FAIL-SUPERSEDES",
+      "mutation": "invalid_supersedes",
+      "expectedCode": "invalid_supersedes"
+    }
+  ]
+}

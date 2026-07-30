@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rust-tutor:learner-profile:v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "profileId",
+    "contentVersion",
+    "displayName",
+    "timezone",
+    "weeklyCapacityHours",
+    "strengths",
+    "growthTargets",
+    "preferences",
+    "privacy"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "profileId": { "pattern": "^LEARNER-[A-Z0-9-]+$" },
+    "contentVersion": { "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "timezone": { "type": "string", "minLength": 1 },
+    "weeklyCapacityHours": { "type": "object", "required": ["minimum", "target", "maximum"] },
+    "strengths": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "growthTargets": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "preferences": {
+      "type": "object",
+      "required": ["deliveryOrder", "flagshipOrder", "calendarIsEvidence"]
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["containsSecrets", "containsEmployerConfidentialData", "allowedUse"]
+    }
+  },
+  "additionalProperties": false
+}

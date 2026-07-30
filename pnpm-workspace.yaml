@@ -1,0 +1,12 @@
+packages:
+  - apps/web
+onlyBuiltDependencies:
+  - esbuild
+minimumReleaseAgeExclude:
+  - '@tanstack/react-start-rsc@0.1.29'
+  - '@tanstack/react-start@1.168.30'
+  - '@tanstack/router-generator@1.167.21'
+  - '@tanstack/router-plugin@1.168.22'
+  - '@tanstack/start-plugin-core@1.171.22'
+overrides:
+  dompurify: 3.4.11

@@ -1,0 +1,50 @@
+[
+  {
+    "generated": true,
+    "kind": "part_of",
+    "sourceId": "MOD-OWNERSHIP-001",
+    "targetId": "TRK-RUST-001"
+  },
+  {
+    "generated": true,
+    "kind": "teaches",
+    "sourceId": "MOD-OWNERSHIP-001",
+    "targetId": "CON-MOVE-001"
+  },
+  {
+    "generated": true,
+    "kind": "teaches",
+    "sourceId": "MOD-OWNERSHIP-001",
+    "targetId": "CON-BORROW-001"
+  },
+  {
+    "generated": true,
+    "kind": "teaches",
+    "sourceId": "MOD-OWNERSHIP-001",
+    "targetId": "OUT-TRACE-MOVE-001"
+  },
+  {
+    "generated": true,
+    "kind": "teaches",
+    "sourceId": "MOD-OWNERSHIP-001",
+    "targetId": "OUT-CHOOSE-BORROW-001"
+  },
+  {
+    "generated": true,
+    "kind": "assesses",
+    "sourceId": "ASM-OWNERSHIP-001",
+    "targetId": "OUT-TRACE-MOVE-001"
+  },
+  {
+    "generated": true,
+    "kind": "assesses",
+    "sourceId": "ASM-OWNERSHIP-001",
+    "targetId": "OUT-CHOOSE-BORROW-001"
+  },
+  {
+    "generated": true,
+    "kind": "practices",
+    "sourceId": "EX-OWNERSHIP-001",
+    "targetId": "OUT-CHOOSE-BORROW-001"
+  }
+]

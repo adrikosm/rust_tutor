@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "profileId": "LEARNER-ANDREAS-001",
+  "contentVersion": "1.0.0",
+  "displayName": "Andreas",
+  "timezone": "Europe/Athens",
+  "weeklyCapacityHours": { "minimum": 8, "target": 10, "maximum": 14 },
+  "strengths": [
+    "production data-platform engineering",
+    "Snowflake, dbt, Dagster, SQL, and Python",
+    "data quality, cost, streaming, and cross-team delivery"
+  ],
+  "growthTargets": [
+    "production Rust depth",
+    "distributed-systems reasoning",
+    "system design under pressure",
+    "algorithms and public proof"
+  ],
+  "preferences": {
+    "deliveryOrder": "EPICS_AND_SPRINTS.md",
+    "flagshipOrder": ["PRJ-PULSE", "PRJ-QUAY", "PRJ-TESSERA"],
+    "calendarIsEvidence": false
+  },
+  "privacy": {
+    "containsSecrets": false,
+    "containsEmployerConfidentialData": false,
+    "allowedUse": "local product personalization"
+  }
+}

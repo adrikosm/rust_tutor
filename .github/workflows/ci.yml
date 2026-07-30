@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.5.0
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          components: clippy,rustfmt
+      - run: pnpm install --frozen-lockfile
+      # Explicit stages so a web-side failure never masks a Rust-side one.
+      - run: pnpm governance:validate
+      - run: pnpm content:validate
+      - run: pnpm contract:generate
+      - run: pnpm format:check
+      - run: pnpm lint:web
+      - run: pnpm lint:rust
+      - run: pnpm typecheck
+      - run: pnpm test:rust
+      - run: pnpm test:web
+      - run: pnpm build
+      - run: pnpm ui:verify:static
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.5.0
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@master
+        with: { toolchain: 1.97.1 }
+      - run: pnpm install --frozen-lockfile
+      - run: cargo install cargo-audit cargo-deny --locked
+      - run: pnpm audit:dependencies
+  package:
+    strategy:
+      matrix:
+        include:
+          - os: macos-15
+            artifact: rust-tutor-darwin-arm64
+          - os: ubuntu-latest
+            artifact: rust-tutor-linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.9.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.5.0
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          components: clippy,rustfmt,rust-analyzer
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm package:local
+      - run: pnpm package:verify-offline
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+          if-no-files-found: error

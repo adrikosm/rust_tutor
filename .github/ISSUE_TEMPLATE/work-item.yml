@@ -1,0 +1,49 @@
+name: Product work item
+description: Propose scoped product, content, or research work against an explicit release gate.
+title: "[scope] "
+labels: ["triage"]
+body:
+  - type: dropdown
+    id: release
+    attributes:
+      label: Release scope
+      options:
+        - foundation
+        - MVP
+        - beta
+        - platform-v1
+        - core-course
+        - parity-catalog
+        - later
+    validations: { required: true }
+  - type: input
+    id: gate
+    attributes:
+      label: Required gate
+      description: Name the gate that must pass before this can claim release readiness.
+      placeholder: GF2, G4, G9, G10, or G11
+    validations: { required: true }
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Observable outcome and verification
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence, graph IDs, and source IDs
+    validations: { required: true }
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration and compatibility impact
+    validations: { required: true }
+  - type: checkboxes
+    id: claims
+    attributes:
+      label: Release honesty
+      options:
+        - label: I will not call this released until the named gate has linked evidence.
+          required: true
+        - label: I have separated learner evidence from product completion and calendar targets.
+          required: true

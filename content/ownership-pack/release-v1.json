@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "release": {
+    "id": "REL-OWNERSHIP-001",
+    "version": "1.0.0",
+    "minimumAppVersion": "0.1.0",
+    "minimumSchemaVersion": 1,
+    "minimumToolchain": "1.97.1"
+  },
+  "sources": [
+    {
+      "id": "SRC-APP-OWNERSHIP-001",
+      "snapshotHash": "9a3caf4d8b31897de4c8e18de8ed01d5616f163792fcae74fe99d370ee9f12a7",
+      "license": {
+        "code": "MIT",
+        "prose": "project-original",
+        "tests": "MIT",
+        "assets": "not-applicable"
+      },
+      "useDecision": "original"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "TRK-RUST-001",
+      "version": 1,
+      "title": "Rust engineering",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "goal": "Reason about ownership before scaling syntax.",
+      "order": 1,
+      "moduleIds": ["MOD-OWNERSHIP-001"]
+    }
+  ],
+  "modules": [
+    {
+      "id": "MOD-OWNERSHIP-001",
+      "version": 1,
+      "title": "Ownership and borrowing",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "conceptIds": ["CON-MOVE-001", "CON-BORROW-001"],
+      "outcomeIds": ["OUT-TRACE-MOVE-001", "OUT-CHOOSE-BORROW-001"],
+      "materialIds": [
+        "UNIT-OWNERSHIP-001",
+        "WORKED-MOVE-001",
+        "CHECK-BORROW-001",
+        "RES-RUST-BOOK-001"
+      ]
+    }
+  ],
+  "concepts": [
+    {
+      "id": "CON-MOVE-001",
+      "version": 1,
+      "title": "Move ownership",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "domain": "rust",
+      "summary": "A non-Copy value changes owner and the prior binding can no longer use it.",
+      "difficulty": "foundation",
+      "status": "published"
+    },
+    {
+      "id": "CON-BORROW-001",
+      "version": 1,
+      "title": "Borrow without transfer",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "domain": "rust",
+      "summary": "A reference grants bounded access without becoming the value owner.",
+      "difficulty": "foundation",
+      "status": "published"
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "OUT-TRACE-MOVE-001",
+      "version": 1,
+      "title": "Trace ownership transfer",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "observable": "Trace the valid owner after each move and predict invalid later use.",
+      "conceptId": "CON-MOVE-001",
+      "status": "published",
+      "evidenceRequirement": "fresh no-support trace and compiling correction",
+      "rubricId": "RUB-OWNERSHIP-001",
+      "assessmentIds": ["ASM-OWNERSHIP-001"]
+    },
+    {
+      "id": "OUT-CHOOSE-BORROW-001",
+      "version": 1,
+      "title": "Choose borrow or move",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "observable": "Choose borrowing when the caller must retain ownership and justify mutability/scope.",
+      "conceptId": "CON-BORROW-001",
+      "status": "published",
+      "evidenceRequirement": "fresh changed-context implementation without hint",
+      "rubricId": "RUB-OWNERSHIP-001",
+      "assessmentIds": ["ASM-OWNERSHIP-001"]
+    }
+  ],
+  "materials": [
+    {
+      "id": "UNIT-OWNERSHIP-001",
+      "version": 1,
+      "title": "Ownership lesson",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "kind": "unit",
+      "outcomeIds": ["OUT-TRACE-MOVE-001", "OUT-CHOOSE-BORROW-001"],
+      "markdownPath": "lesson.md"
+    },
+    {
+      "id": "WORKED-MOVE-001",
+      "version": 1,
+      "title": "Annotated move trace",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "kind": "worked_example",
+      "outcomeIds": ["OUT-TRACE-MOVE-001"],
+      "markdownPath": "worked-example.md"
+    },
+    {
+      "id": "CHECK-BORROW-001",
+      "version": 1,
+      "title": "Borrow selection check",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "kind": "check",
+      "outcomeIds": ["OUT-CHOOSE-BORROW-001"],
+      "markdownPath": "check.md"
+    },
+    {
+      "id": "RES-RUST-BOOK-001",
+      "version": 1,
+      "title": "Official Rust ownership chapter",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "kind": "resource",
+      "outcomeIds": ["OUT-TRACE-MOVE-001"],
+      "markdownPath": "resource.md"
+    }
+  ],
+  "items": [
+    {
+      "id": "EX-OWNERSHIP-001",
+      "version": 1,
+      "title": "Retained caller",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "kind": "exercise",
+      "promptChecksum": "7ddaf2a16b4b6bc5adfe6bb40381eecfba67ccae6d925e9ec69ee2a4f5fce14a",
+      "variantSeedPolicy": "fixed",
+      "variantIds": ["VAR-OWNERSHIP-001"],
+      "outcomeIds": ["OUT-CHOOSE-BORROW-001"],
+      "testIds": ["TST-OWNERSHIP-001"],
+      "evaluatorId": "EVAL-OWNERSHIP-001",
+      "supportMode": "practice",
+      "rubricId": "RUB-OWNERSHIP-001"
+    },
+    {
+      "id": "ASM-OWNERSHIP-001",
+      "version": 1,
+      "title": "Fresh ownership decision",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "kind": "assessment",
+      "promptChecksum": "fdab32b32b94ef5dc3352219d9f7f3a0d15c79bd11a7d506fa2b1576d1b333a6",
+      "variantSeedPolicy": "fresh-reviewed",
+      "variantIds": ["VAR-OWNERSHIP-ASM-001"],
+      "outcomeIds": ["OUT-TRACE-MOVE-001", "OUT-CHOOSE-BORROW-001"],
+      "testIds": ["TST-OWNERSHIP-ASM-001"],
+      "evaluatorId": "EVAL-OWNERSHIP-ASM-001",
+      "supportMode": "none",
+      "rubricId": "RUB-OWNERSHIP-001"
+    }
+  ],
+  "variants": [
+    {
+      "id": "VAR-OWNERSHIP-001",
+      "version": 1,
+      "title": "Retained caller base variant",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "EX-OWNERSHIP-001",
+      "seed": "ownership-practice-v1",
+      "parameterOverrides": { "container": "String" }
+    },
+    {
+      "id": "VAR-OWNERSHIP-ASM-001",
+      "version": 1,
+      "title": "Fresh ownership assessment variant",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "ASM-OWNERSHIP-001",
+      "seed": "ownership-assessment-v1",
+      "parameterOverrides": { "container": "Vec<String>" }
+    }
+  ],
+  "tests": [
+    {
+      "id": "TST-OWNERSHIP-001",
+      "version": 1,
+      "title": "Practice compile test",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "EX-OWNERSHIP-001",
+      "kind": "cargo-test",
+      "command": ["cargo", "test", "--offline"],
+      "expected": "exit-0"
+    },
+    {
+      "id": "TST-OWNERSHIP-ASM-001",
+      "version": 1,
+      "title": "Assessment compile test",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "ASM-OWNERSHIP-001",
+      "kind": "cargo-test",
+      "command": ["cargo", "test", "--offline"],
+      "expected": "exit-0"
+    }
+  ],
+  "evaluators": [
+    {
+      "id": "EVAL-OWNERSHIP-001",
+      "version": 1,
+      "title": "Practice evaluator",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "EX-OWNERSHIP-001",
+      "testIds": ["TST-OWNERSHIP-001"],
+      "mode": "trusted-local"
+    },
+    {
+      "id": "EVAL-OWNERSHIP-ASM-001",
+      "version": 1,
+      "title": "Assessment evaluator",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "ASM-OWNERSHIP-001",
+      "testIds": ["TST-OWNERSHIP-ASM-001"],
+      "mode": "trusted-local"
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "MIS-COPY-MOVE-001",
+      "version": 1,
+      "title": "Assignment always copies",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "diagnosticPatterns": ["uses both String bindings after assignment"],
+      "feedback": "Trace the single owner after the assignment.",
+      "remediationIds": ["CON-MOVE-001", "WORKED-MOVE-001"]
+    }
+  ],
+  "hints": [
+    {
+      "id": "HINT-OWNERSHIP-001",
+      "version": 1,
+      "title": "Name the retained owner",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "itemId": "EX-OWNERSHIP-001",
+      "level": 1,
+      "prerequisiteAction": "write the desired post-call owner",
+      "text": "Which binding must still own the String after the call?",
+      "solutionReveal": false
+    }
+  ],
+  "rubrics": [
+    {
+      "id": "RUB-OWNERSHIP-001",
+      "version": 1,
+      "title": "Ownership reasoning rubric",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "criteria": ["owner trace", "borrow/move choice", "scope", "compiling evidence"],
+      "allowedSupport": ["none", "compiler", "official-docs"],
+      "evidenceRules": ["confidence precedes feedback", "assessment uses no hints"]
+    }
+  ],
+  "projects": [
+    {
+      "id": "PRJ-OWNERSHIP-PROBE-001",
+      "version": 1,
+      "title": "Ownership probe",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "purpose": "Transfer ownership reasoning into a small data transform.",
+      "stages": [
+        {
+          "id": "STG-OWNERSHIP-PROBE-001",
+          "version": 1,
+          "prerequisiteOutcomeIds": ["OUT-CHOOSE-BORROW-001"],
+          "artifactIds": ["ART-OWNERSHIP-PROBE-001"],
+          "testGroupIds": ["TST-OWNERSHIP-ASM-001"],
+          "acceptanceRubricId": "RUB-OWNERSHIP-001"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "ART-OWNERSHIP-PROBE-001",
+      "version": 1,
+      "title": "Ownership probe source bundle",
+      "sourceIds": ["SRC-APP-OWNERSHIP-001"],
+      "projectId": "PRJ-OWNERSHIP-PROBE-001",
+      "kind": "source-tree",
+      "evidenceRequirements": ["checksum", "toolchain", "passing-tests", "reflection"]
+    }
+  ],
+  "graph": {
+    "nodes": [
+      "TRK-RUST-001",
+      "MOD-OWNERSHIP-001",
+      "CON-MOVE-001",
+      "CON-BORROW-001",
+      "OUT-TRACE-MOVE-001",
+      "OUT-CHOOSE-BORROW-001",
+      "EX-OWNERSHIP-001",
+      "ASM-OWNERSHIP-001",
+      "PRJ-OWNERSHIP-PROBE-001"
+    ],
+    "edges": [
+      {
+        "id": "EDGE-OWNERSHIP-001",
+        "sourceId": "CON-MOVE-001",
+        "targetId": "CON-BORROW-001",
+        "kind": "prerequisite_of",
+        "rationale": "Borrowing is distinguished from transferring ownership."
+      },
+      {
+        "id": "EDGE-OWNERSHIP-002",
+        "sourceId": "OUT-CHOOSE-BORROW-001",
+        "targetId": "PRJ-OWNERSHIP-PROBE-001",
+        "kind": "transfers_to",
+        "rationale": "The project changes the surface context while retaining the ownership decision."
+      }
+    ]
+  },
+  "idMigrations": {
+    "aliases": [{ "alias": "CON-OWNERSHIP-MOVE-OLD", "canonicalId": "CON-MOVE-001" }],
+    "tombstones": [{ "id": "EX-OWNERSHIP-DRAFT-000", "retiredIn": "1.0.0" }],
+    "supersedes": [{ "oldId": "EX-OWNERSHIP-DRAFT-000", "newId": "EX-OWNERSHIP-001" }]
+  }
+}

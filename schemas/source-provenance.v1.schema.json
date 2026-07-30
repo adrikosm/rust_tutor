@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rust-tutor:source-provenance:v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "importedAt",
+    "feedRelease",
+    "graphRelease",
+    "wikiRelease",
+    "sourceSetChecksum",
+    "claimSnapshotSourceCount",
+    "sources"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "importedAt": { "type": "string", "format": "date" },
+    "feedRelease": { "type": "string" },
+    "graphRelease": { "type": "string" },
+    "wikiRelease": { "type": "string" },
+    "sourceSetChecksum": { "pattern": "^[a-f0-9]{64}$" },
+    "claimSnapshotSourceCount": { "type": "integer", "minimum": 1 },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "origin",
+          "role",
+          "snapshotVersion",
+          "snapshotHash",
+          "wrapperHash",
+          "promotionState",
+          "license",
+          "useDecision"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "enum": ["local_document", "web_reference", "release_evidence"] },
+          "origin": { "type": "string" },
+          "role": { "type": "string", "minLength": 1 },
+          "snapshotVersion": { "type": "string", "minLength": 1 },
+          "snapshotHash": { "pattern": "^[a-f0-9]{64}$" },
+          "wrapperHash": { "pattern": "^[a-f0-9]{64}$" },
+          "promotionState": { "type": "string" },
+          "license": {
+            "type": "object",
+            "required": ["code", "prose", "tests", "assets"],
+            "properties": {
+              "code": { "type": "string" },
+              "prose": { "type": "string" },
+              "tests": { "type": "string" },
+              "assets": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "useDecision": {
+            "enum": [
+              "original",
+              "permissive",
+              "link-only",
+              "study-only",
+              "internal-original",
+              "project-private",
+              "prohibited",
+              "reviewed-input",
+              "unknown"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,25 @@
+{
+  "checksum": "377abae1d4523366424a66c736f0a8a20c279e7f556bd95e3c241a11b24237d7",
+  "contentRelease": "REL-OWNERSHIP-001",
+  "counts": {
+    "artifacts": 1,
+    "concepts": 2,
+    "evaluators": 2,
+    "hints": 1,
+    "items": 2,
+    "materials": 4,
+    "misconceptions": 1,
+    "modules": 1,
+    "outcomes": 2,
+    "projects": 1,
+    "rubrics": 1,
+    "tests": 2,
+    "tracks": 1,
+    "variants": 2
+  },
+  "generatedEdgeCount": 8,
+  "minimumAppVersion": "0.1.0",
+  "minimumToolchain": "1.97.1",
+  "schemaVersion": 1,
+  "version": "1.0.0"
+}

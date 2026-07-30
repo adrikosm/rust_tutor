@@ -1,0 +1,325 @@
+{
+  "schemaVersion": 1,
+  "formId": "FINAL-EXAM-FORM-A",
+  "formVersion": "1.0.0",
+  "passThresholdPercent": 80,
+  "supportPolicy": "Compiler diagnostics and the bundled Rust standard-library documentation are allowed only where the item declares them. Hints, solutions, external help, and runtime LLM help are disabled. Accessibility bypasses change interaction, never scoring.",
+  "retryPolicy": "A completed form may be retried only as a fresh versioned attempt. Misses schedule prerequisite-ordered lessons and fresh transfer items; the exact exam item is not made an immediate review card.",
+  "items": [
+    {
+      "id": "EXAM-Q01",
+      "category": "fundamentals",
+      "format": "multiple_choice",
+      "prompt": "Which loop preserves the invariant that every processed value has been added exactly once?",
+      "choices": [
+        "for value in values { total += value; }",
+        "while true { total += values[0]; }",
+        "for _ in 0..=values.len() { total += values[0]; }",
+        "values.iter().cycle().sum()"
+      ],
+      "answerIndex": 0,
+      "itemChecksum": "1be774ed23597f63101c29685c67a382ea2b805a33e06dc59a3768965ecb0160",
+      "primaryOutcomeId": "OUT-RUST-SELECT-CONTROL-FLOW-001",
+      "rubric": "Select the bounded iteration whose progress and termination follow from the collection.",
+      "support": "none",
+      "explanation": "A finite for-loop visits each element once and makes progress without indexing past the end.",
+      "remediationLessonId": "CON-RUST-CONTROL-FLOW-001",
+      "independentPracticeId": "EXE-ALG-RANGE-TOTALS-001",
+      "checkpointId": "ASM-RUST-FOUNDATIONS-001"
+    },
+    {
+      "id": "EXAM-Q02",
+      "category": "ownership",
+      "format": "predict_output",
+      "prompt": "After let moved = text; which statement is valid without cloning?",
+      "choices": [
+        "println!(\"{text}\");",
+        "println!(\"{moved}\");",
+        "drop(text);",
+        "return (&text, moved);"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "26bb2072d860fbf10c66ada58b994b8459d0d5981414f5247f47e8b45bc06ef1",
+      "primaryOutcomeId": "OUT-RUST-TRACE-OWNERSHIP-001",
+      "rubric": "Track the unique owner after the move.",
+      "support": "none",
+      "explanation": "The String owner moves to moved; the old binding cannot be used.",
+      "remediationLessonId": "CON-RUST-MOVE-SEMANTICS-001",
+      "independentPracticeId": "EX-OWNERSHIP-INDEPENDENT-001",
+      "checkpointId": "ASM-RUST-OWNERSHIP-TRANSFER-001"
+    },
+    {
+      "id": "EXAM-Q03",
+      "category": "borrowing",
+      "format": "compile_fail_repair",
+      "prompt": "A mutable borrow overlaps an immutable borrow used later. What is the smallest causal repair?",
+      "choices": [
+        "Add unsafe",
+        "Shorten the immutable borrow so its final use precedes the mutable borrow",
+        "Clone every value",
+        "Replace all references with static references"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "e7db49f8d7aa75a97421cc666e78f1326972b8d5f07f8d31e9673e9c5ccd8443",
+      "primaryOutcomeId": "OUT-RUST-REPAIR-BORROW-CONFLICT-001",
+      "rubric": "Repair the conflicting lifetime at its cause without semantic escape hatches.",
+      "support": "compiler",
+      "explanation": "Non-overlapping borrow scopes preserve the intended ownership model.",
+      "remediationLessonId": "CON-RUST-EXCLUSIVE-BORROW-001",
+      "independentPracticeId": "EX-OWNERSHIP-CSV-001",
+      "checkpointId": "ASM-RUST-OWNERSHIP-TRANSFER-001"
+    },
+    {
+      "id": "EXAM-Q04",
+      "category": "lifetimes",
+      "format": "multiple_choice",
+      "prompt": "What does fn longest<'a>(x: &'a str, y: &'a str) -> &'a str promise?",
+      "choices": [
+        "The result lives forever",
+        "The result cannot outlive the shared validity bound of x and y",
+        "Both inputs are allocated",
+        "The function extends either input lifetime"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "864db11cc26eb3eed0263ee86e848d3eb8bbcb269a4e4c9d115f481e7612e787",
+      "primaryOutcomeId": "OUT-RUST-ANNOTATE-LIFETIME-RELATION-001",
+      "rubric": "Describe the reference relationship without claiming lifetime extension.",
+      "support": "none",
+      "explanation": "The annotation relates existing lifetimes; it creates no new lifetime.",
+      "remediationLessonId": "CON-RUST-LIFETIME-ANNOTATION-001",
+      "independentPracticeId": "EXE-ALG-OWNED-LIST-001",
+      "checkpointId": "ASM-RUST-ABSTRACTION-BOUNDARY-001"
+    },
+    {
+      "id": "EXAM-Q05",
+      "category": "traits",
+      "format": "multiple_choice",
+      "prompt": "For a reusable formatter contract with several implementations, which boundary is most direct?",
+      "choices": [
+        "A trait with the required method",
+        "A global mutable variable",
+        "A macro that copies each implementation",
+        "An unbounded generic with no callable behavior"
+      ],
+      "answerIndex": 0,
+      "itemChecksum": "a3cea1c70a041b09b7b6c5bfba74313a3d6f68ec77b2739f6e30d1cd7b611129",
+      "primaryOutcomeId": "OUT-RUST-IMPLEMENT-TRAIT-CONTRACT-001",
+      "rubric": "Choose the smallest explicit behavioral contract.",
+      "support": "none",
+      "explanation": "A trait names required behavior and permits static or dynamic dispatch as needed.",
+      "remediationLessonId": "CON-RUST-TRAIT-IMPLEMENTATION-001",
+      "independentPracticeId": "EXE-ALG-EXPRESSION-TREE-001",
+      "checkpointId": "ASM-RUST-ABSTRACTION-BOUNDARY-001"
+    },
+    {
+      "id": "EXAM-Q06",
+      "category": "generics",
+      "format": "multiple_choice",
+      "prompt": "A function only compares values. Which bound is least restrictive and sufficient?",
+      "choices": [
+        "T: PartialEq",
+        "T: Clone + Default + Display + PartialEq",
+        "T: 'static",
+        "T: Send + Sync"
+      ],
+      "answerIndex": 0,
+      "itemChecksum": "941070dfe34600d5497590804f100f0ff806e38b78d3514a794687cd5f9dd846",
+      "primaryOutcomeId": "OUT-RUST-DESIGN-GENERIC-API-001",
+      "rubric": "Require exactly the behavior used by the implementation.",
+      "support": "none",
+      "explanation": "PartialEq supplies comparison; unrelated capabilities would overconstrain callers.",
+      "remediationLessonId": "CON-RUST-TRAIT-BOUND-001",
+      "independentPracticeId": "EXE-ALG-STABLE-UNIQUE-001",
+      "checkpointId": "ASM-RUST-PROGRAM-STRUCTURE-001"
+    },
+    {
+      "id": "EXAM-Q07",
+      "category": "errors",
+      "format": "debugging_decision",
+      "prompt": "A library can recover from a missing optional record. What boundary preserves context and caller choice?",
+      "choices": [
+        "panic! immediately",
+        "Return a typed Result with contextual error data",
+        "Silently use zero",
+        "Terminate the process"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "5b77ae7ece82a081a00bf5c1ca72ea3e7248a929bdbff0cb90d4f3761acbee36",
+      "primaryOutcomeId": "OUT-RUST-DESIGN-ERROR-BOUNDARY-001",
+      "rubric": "Separate recoverable domain failure from process invariants.",
+      "support": "none",
+      "explanation": "A typed Result keeps the failure explicit and composable.",
+      "remediationLessonId": "CON-RUST-ERROR-BOUNDARY-001",
+      "independentPracticeId": "EXE-DATA-JSONL-INGEST-001",
+      "checkpointId": "ASM-RUST-ERROR-BOUNDARY-001"
+    },
+    {
+      "id": "EXAM-Q08",
+      "category": "cargo",
+      "format": "multiple_choice",
+      "prompt": "Which release evidence best proves dependency resolution is reproducible?",
+      "choices": [
+        "A committed lockfile where appropriate plus pinned toolchain and successful locked build",
+        "A screenshot of crates.io",
+        "Deleting Cargo.lock before every build",
+        "Using every default feature"
+      ],
+      "answerIndex": 0,
+      "itemChecksum": "16ab9bc9bce10c3c3a79e489e12a542b272469210f7f476c77cef310e5b9b8c1",
+      "primaryOutcomeId": "OUT-RUST-OPERATE-RELEASE-001",
+      "rubric": "Select inspectable, replayable build evidence.",
+      "support": "bundled_docs",
+      "explanation": "A pinned toolchain and locked resolution make the build inputs reviewable.",
+      "remediationLessonId": "CON-RUST-RELEASE-PACKAGE-001",
+      "independentPracticeId": "EXE-DATA-CONFIG-SNAPSHOT-001",
+      "checkpointId": "ASM-RUST-PRODUCTION-RELEASE-001"
+    },
+    {
+      "id": "EXAM-Q09",
+      "category": "testing",
+      "format": "multiple_choice",
+      "prompt": "Which test most strongly distinguishes a stable deduplicator from a set that loses order?",
+      "choices": [
+        "An empty input only",
+        "Input [b,a,b] expecting [b,a]",
+        "A test that only asserts length <= input length",
+        "A compiler check"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "06f0fc4e01c47a95e40bb8452aa9e6b0a2468fbbf28534a49fdb49e189167c7f",
+      "primaryOutcomeId": "OUT-RUST-DESIGN-TEST-ORACLE-001",
+      "rubric": "Choose an oracle that kills the plausible order-losing implementation.",
+      "support": "none",
+      "explanation": "The repeated non-sorted input verifies both deduplication and first-seen order.",
+      "remediationLessonId": "CON-RUST-TEST-ORACLE-001",
+      "independentPracticeId": "EXE-ALG-DUPLICATE-COUNTS-001",
+      "checkpointId": "ASM-RUST-TEST-DEBUG-TRANSFER-001"
+    },
+    {
+      "id": "EXAM-Q10",
+      "category": "tooling",
+      "format": "debugging_decision",
+      "prompt": "rustc reports E0382. What is the best first evidence-seeking action?",
+      "choices": [
+        "Read the full diagnostic and inspect the move and later use",
+        "Search for a complete replacement solution",
+        "Add clones until it compiles",
+        "Disable the borrow checker"
+      ],
+      "answerIndex": 0,
+      "itemChecksum": "762b9496626a414cad60029d3ce01253ef23a4916b172a1cfce0b35908d2b697",
+      "primaryOutcomeId": "OUT-RUST-VERIFY-ACTIVE-TOOLCHAIN-001",
+      "rubric": "Use active-toolchain evidence before speculative edits.",
+      "support": "compiler",
+      "explanation": "The normalized diagnostic identifies the moved value and causal spans.",
+      "remediationLessonId": "CON-RUST-TOOLCHAIN-RESOLUTION-001",
+      "independentPracticeId": "EXE-LEARN-INDEPENDENCE-PACKET-001",
+      "checkpointId": "ASM-RUST-TOOLCHAIN-WORKFLOW-001"
+    },
+    {
+      "id": "EXAM-Q11",
+      "category": "concurrency",
+      "format": "multiple_choice",
+      "prompt": "Several threads increment shared state and must preserve an exact final count. Which design is valid?",
+      "choices": [
+        "Rc<RefCell<u64>> shared across threads",
+        "Arc<Mutex<u64>> with bounded lock scope",
+        "A mutable static without synchronization",
+        "An unbounded channel with no shutdown"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "3a56db4aecacdf96fe75c52b6eac3738c2c25e5697b8f9aa88bbea0d5bc8d6f1",
+      "primaryOutcomeId": "OUT-RUST-TEST-CONCURRENCY-INVARIANT-001",
+      "rubric": "Preserve thread-safe ownership and name the deterministic final invariant.",
+      "support": "none",
+      "explanation": "Arc shares ownership across threads and Mutex guards mutation.",
+      "remediationLessonId": "CON-RUST-DETERMINISTIC-CONCURRENCY-TEST-001",
+      "independentPracticeId": "EXE-DATA-BOUNDED-PIPELINE-001",
+      "checkpointId": "ASM-RUST-NATIVE-CONCURRENCY-001"
+    },
+    {
+      "id": "EXAM-Q12",
+      "category": "tokio",
+      "format": "multiple_choice",
+      "prompt": "A Tokio service spawns child tasks. What must graceful shutdown prove?",
+      "choices": [
+        "The parent exits and abandons children",
+        "Cancellation is signaled, child results are joined, and blocking work is isolated",
+        "Every task sleeps one second",
+        "The runtime has unlimited worker threads"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "e4085abfe8d21560472a9d72c1628826ba27d124060154bb5efeb742f40fce6c",
+      "primaryOutcomeId": "OUT-RUST-CHOOSE-CONCURRENCY-MODEL-001",
+      "rubric": "Account for cancellation, child cleanup, and blocking boundaries.",
+      "support": "bundled_docs",
+      "explanation": "Structured cleanup prevents orphaned work and makes termination observable.",
+      "remediationLessonId": "CON-RUST-ASYNC-SUITABILITY-001",
+      "independentPracticeId": "EXE-DATA-PROTO-TCP-COMMAND-001",
+      "checkpointId": "ASM-RUST-NATIVE-CONCURRENCY-001"
+    },
+    {
+      "id": "EXAM-Q13",
+      "category": "data_engineering",
+      "format": "system_design",
+      "prompt": "A bounded ingest pipeline receives duplicate and malformed events. Which design makes recovery claims testable?",
+      "choices": [
+        "Unbounded queue, silent parse drops, at-most-once sink",
+        "Bounded queue, explicit validation rejects, idempotency key, checkpoint/replay manifest",
+        "Load everything into memory and retry forever",
+        "Rely on wall-clock sleeps and manual inspection"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "022d566b1ff9dce7c5c50efd2be756e9ad93ee42232d8550a4e8915a73306ba4",
+      "primaryOutcomeId": "OUT-DATA-RECOVERY-DESIGN-001",
+      "rubric": "State bounded capacity, bad-record accounting, duplicate semantics, and replay evidence.",
+      "support": "none",
+      "explanation": "The bounded, explicit design exposes failure semantics and can replay from a manifest.",
+      "remediationLessonId": "CON-DATA-SINK-IDEMPOTENCY-001",
+      "independentPracticeId": "EXE-DATA-CHECKPOINT-REPLAY-001",
+      "checkpointId": "ASM-DATA-BACKPRESSURE-RECOVERY-001"
+    },
+    {
+      "id": "EXAM-Q14",
+      "category": "algorithms",
+      "format": "fresh_algorithm",
+      "prompt": "For a sorted slice, which strategy returns the first index of target in O(log n) time?",
+      "choices": [
+        "Linear scan from index zero",
+        "Lower-bound binary search that keeps the first feasible index",
+        "Sort the slice on every iteration",
+        "Hash values and return any duplicate"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "20cde8983828856aeda8927a58f72cf4ca2bf0d74f616974a2b648ccfa68d441",
+      "primaryOutcomeId": "OUT-ALG-PROVE-ORDERED-SEARCH-001",
+      "rubric": "Name the monotone predicate, half-open interval invariant, progress, and O(log n) bound.",
+      "support": "none",
+      "explanation": "Lower-bound search preserves the earliest feasible position while halving the interval.",
+      "remediationLessonId": "CON-ALG-LOOP-INVARIANT-001",
+      "independentPracticeId": "EXE-ALG-CATALOG-PROBE-001",
+      "checkpointId": "ASM-ALG-SORT-SEARCH-001"
+    },
+    {
+      "id": "EXAM-Q15",
+      "category": "production_engineering",
+      "format": "observability_diagnosis",
+      "prompt": "Latency SLO burns after a deploy while error rate stays flat. What is the strongest next step before changing code?",
+      "choices": [
+        "Increase every timeout",
+        "Correlate the deploy with bounded traces, queue saturation, and dependency latency, then test one hypothesis",
+        "Disable telemetry",
+        "Restart repeatedly until the graph looks normal"
+      ],
+      "answerIndex": 1,
+      "itemChecksum": "1e2d5173f33295f57f5a1a12673950c38a913ac6c0da94fd25429261e425a7d1",
+      "primaryOutcomeId": "OUT-DATA-OBSERVE-INVESTIGATE-001",
+      "rubric": "Commit an evidence-linked hypothesis before mitigation and distinguish symptom from cause.",
+      "support": "none",
+      "explanation": "Cross-signal evidence narrows the causal path without hiding the symptom.",
+      "remediationLessonId": "CON-DATA-TELEMETRY-CONTEXT-001",
+      "independentPracticeId": "EXE-DATA-TRACE-INVESTIGATION-001",
+      "checkpointId": "ASM-DATA-OBSERVABILITY-SLO-001"
+    }
+  ]
+}

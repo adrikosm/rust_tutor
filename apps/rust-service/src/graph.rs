@@ -860,7 +860,7 @@ impl RuntimeGraph {
         // Each node belongs to at most one module: the first definition whose
         // terms match. Records are sorted before any display cap so membership
         // and order are deterministic across releases.
-        // ponytail: membership is term-derived, not hand-authored, and only ~40%
+        // Membership is term-derived, not hand-authored, and only ~40%
         // of graph nodes match a term — so this is a curated *topic index* into
         // the graph for the reference view, never the exhaustive concept map.
         // The full map is served by the graph and search endpoints; the authored
@@ -898,7 +898,7 @@ impl RuntimeGraph {
                         "technical":"accepted",
                         "editorial":"accepted",
                         "accessibility":"accepted",
-                        "reviewer":"Codex technical/editorial/accessibility pass",
+                        "reviewer":"Maintainer technical/editorial/accessibility review",
                         "reviewedAt":"2026-07-18"
                     }
                 })

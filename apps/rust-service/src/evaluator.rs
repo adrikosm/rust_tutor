@@ -353,7 +353,7 @@ impl Evaluator {
             }
             let output_bytes = file_len(&stdout_path) + file_len(&stderr_path);
             let workspace_bytes = directory_size(workspace)?;
-            // ponytail: RSS is sampled every ~200ms via ps; a hard rlimit would need
+            // RSS is sampled every ~200ms via ps; a hard rlimit would need
             // platform-specific pre_exec hooks and breaks rustc's address-space use.
             let memory_kilobytes = if poll_tick.is_multiple_of(10) {
                 process_group_rss_kilobytes(pid)
@@ -742,7 +742,7 @@ fn stream_growth(
         .join("\n");
     let text = sanitize(&readable, workspace);
     if !text.is_empty() {
-        // ponytail: a full or closed progress channel drops this chunk instead of
+        // A full or closed progress channel drops this chunk instead of
         // failing the run; the persisted final result remains authoritative.
         let _ = sender.try_send(OutputChunk {
             channel: channel.to_owned(),

@@ -72,7 +72,7 @@ rust_tutor/
 └── package.json             # Workspace commands and toolchain requirements
 ```
 
-Research snapshots, personal notes, AI workspaces, generated builds, dependencies, and learner data
+Research snapshots, personal notes, local editor state, generated builds, dependencies, and learner data
 are intentionally excluded from Git.
 
 ## Getting started

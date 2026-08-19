@@ -144,7 +144,7 @@ pub struct MasteryExplanation {
 /// observations feeds the retained/needs-confirmation logic for observation
 /// `n + 1`. Incremental and restart rebuilds therefore derive identical state.
 pub fn derive_mastery_history(observations: &[Observation]) -> MasteryExplanation {
-    // ponytail: O(n²) over a learner's per-concept evidence, which stays tiny;
+    // O(n²) over a learner's per-concept evidence, which stays tiny;
     // an incremental accumulator would only matter at thousands of rows.
     let mut previous = MasteryState::NotStarted;
     let mut explanation = derive_mastery(previous, &[]);

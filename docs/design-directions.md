@@ -1,6 +1,6 @@
 # E04 design directions
 
-Two local design-skill searches were used as provocations, then filtered through the product’s evidence-first subject matter and accessibility requirements.
+These directions were filtered through the product’s evidence-first subject matter and accessibility requirements.
 
 ## Direction A — Ownership ledger (implemented candidate)
 

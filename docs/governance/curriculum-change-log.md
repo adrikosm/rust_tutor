@@ -17,5 +17,5 @@ Released decisions are append-only. Every deviation must include: date, decision
 - Affected IDs: `CON-RUST-BOX-001`, `CON-ALG-MERGE-INVARIANT-001`, two noncanonical aliases, and six edges.
 - Decision: publish corrective KG-v0.1; preserve KG-v0.
 - Migration: map the two aliases named in the KG-v0.1 manifest; no learner events existed.
-- Reviewer: Codex technical validation.
+- Reviewer: Maintainer technical validation.
 - Release: KG-v0.1 / KF-v0.

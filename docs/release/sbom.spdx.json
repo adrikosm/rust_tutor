@@ -6,7 +6,7 @@
   "documentNamespace": "https://rust-tutor.local/sbom/0.1.0-beta/2026-07-18",
   "creationInfo": {
     "created": "2026-07-18T00:00:00Z",
-    "creators": ["Tool: Codex release inventory"]
+    "creators": ["Tool: Rust Tutor release inventory"]
   },
   "packages": [
     {

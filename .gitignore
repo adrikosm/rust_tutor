@@ -1,25 +1,7 @@
-# Local agent and editor state.
-.agents/
-.agents-cache/
-.agent-worktrees/
-.ai/
-.aider*
-.claude/
-.codex/
-.continue/
-.cursor/
+# Local editor state.
 .idea/
-.roo/
-.ua/
 .vscode/
-.windsurf/
 .worktrees/
-AGENTS.md
-AI_NOTES.md
-CLAUDE.md
-CODEX.md
-GEMINI.md
-.github/copilot-instructions.md
 
 # Research, design, and internal planning material.
 design-system/

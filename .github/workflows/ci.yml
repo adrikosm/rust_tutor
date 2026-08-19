@@ -34,6 +34,7 @@ jobs:
       - run: pnpm lint:web
       - run: pnpm lint:rust
       - run: pnpm typecheck
+      - run: pnpm package:local
       - run: pnpm test:rust
       - run: pnpm test:web
       - run: pnpm build

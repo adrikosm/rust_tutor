@@ -39,11 +39,11 @@
         "return (&text, moved);"
       ],
       "answerIndex": 1,
-      "itemChecksum": "26bb2072d860fbf10c66ada58b994b8459d0d5981414f5247f47e8b45bc06ef1",
+      "itemChecksum": "b1e9e08f8d5440daa59c790bdf5b0062a2630bba50fa4b4abd4cc9a1d943b52e",
       "primaryOutcomeId": "OUT-RUST-TRACE-OWNERSHIP-001",
-      "rubric": "Track the unique owner after the move.",
+      "rubric": "Track the unique owner after the move and reject every use of the invalidated source binding.",
       "support": "none",
-      "explanation": "The String owner moves to moved; the old binding cannot be used.",
+      "explanation": "Assignment moves the String allocation's ownership into moved. The text binding is invalidated, so only moved can be read or dropped unless the value was cloned before the move.",
       "remediationLessonId": "CON-RUST-MOVE-SEMANTICS-001",
       "independentPracticeId": "EX-OWNERSHIP-INDEPENDENT-001",
       "checkpointId": "ASM-RUST-OWNERSHIP-TRANSFER-001"
@@ -60,11 +60,11 @@
         "Replace all references with static references"
       ],
       "answerIndex": 1,
-      "itemChecksum": "e7db49f8d7aa75a97421cc666e78f1326972b8d5f07f8d31e9673e9c5ccd8443",
+      "itemChecksum": "834f9a9f2d841bc7ed2dc211fdcb5416db71f401c9094d2788a1be0658469029",
       "primaryOutcomeId": "OUT-RUST-REPAIR-BORROW-CONFLICT-001",
       "rubric": "Repair the conflicting lifetime at its cause without semantic escape hatches.",
       "support": "compiler",
-      "explanation": "Non-overlapping borrow scopes preserve the intended ownership model.",
+      "explanation": "Ending the immutable borrow after its final use lets the mutable borrow begin without overlap. This repairs the actual exclusivity conflict while preserving the intended ownership and avoiding cloning or unsafe code.",
       "remediationLessonId": "CON-RUST-EXCLUSIVE-BORROW-001",
       "independentPracticeId": "EX-OWNERSHIP-CSV-001",
       "checkpointId": "ASM-RUST-OWNERSHIP-TRANSFER-001"
@@ -81,11 +81,11 @@
         "The function extends either input lifetime"
       ],
       "answerIndex": 1,
-      "itemChecksum": "864db11cc26eb3eed0263ee86e848d3eb8bbcb269a4e4c9d115f481e7612e787",
+      "itemChecksum": "be059f8d1cc45b68567976b1078e464375fe6059ca354956c4e1f19662dd2c97",
       "primaryOutcomeId": "OUT-RUST-ANNOTATE-LIFETIME-RELATION-001",
       "rubric": "Describe the reference relationship without claiming lifetime extension.",
       "support": "none",
-      "explanation": "The annotation relates existing lifetimes; it creates no new lifetime.",
+      "explanation": "The shared lifetime parameter relates the inputs and output: the returned reference cannot outlive the validity common to both inputs. An annotation describes that constraint; it never extends either referent's lifetime.",
       "remediationLessonId": "CON-RUST-LIFETIME-ANNOTATION-001",
       "independentPracticeId": "EXE-ALG-OWNED-LIST-001",
       "checkpointId": "ASM-RUST-ABSTRACTION-BOUNDARY-001"
@@ -144,11 +144,11 @@
         "Terminate the process"
       ],
       "answerIndex": 1,
-      "itemChecksum": "5b77ae7ece82a081a00bf5c1ca72ea3e7248a929bdbff0cb90d4f3761acbee36",
+      "itemChecksum": "8ee53b74a0d510e959198259ffc37193e3463754bca655b6a0ecd8621b13d389",
       "primaryOutcomeId": "OUT-RUST-DESIGN-ERROR-BOUNDARY-001",
       "rubric": "Separate recoverable domain failure from process invariants.",
       "support": "none",
-      "explanation": "A typed Result keeps the failure explicit and composable.",
+      "explanation": "A typed Result makes the recoverable absence explicit, preserves contextual error data, and lets each caller choose whether to retry, substitute, report, or propagate the failure with the question-mark operator.",
       "remediationLessonId": "CON-RUST-ERROR-BOUNDARY-001",
       "independentPracticeId": "EXE-DATA-JSONL-INGEST-001",
       "checkpointId": "ASM-RUST-ERROR-BOUNDARY-001"
@@ -165,11 +165,11 @@
         "Using every default feature"
       ],
       "answerIndex": 0,
-      "itemChecksum": "16ab9bc9bce10c3c3a79e489e12a542b272469210f7f476c77cef310e5b9b8c1",
+      "itemChecksum": "73a590771a163d67dcd029b49565c7edb8b9e7b2d0d5c0ea4d0b1c33e4ad5a73",
       "primaryOutcomeId": "OUT-RUST-OPERATE-RELEASE-001",
       "rubric": "Select inspectable, replayable build evidence.",
       "support": "bundled_docs",
-      "explanation": "A pinned toolchain and locked resolution make the build inputs reviewable.",
+      "explanation": "A pinned toolchain plus the appropriate committed lockfile fixes both compiler behavior and dependency resolution. A successful locked build then supplies replayable evidence that those declared inputs are sufficient.",
       "remediationLessonId": "CON-RUST-RELEASE-PACKAGE-001",
       "independentPracticeId": "EXE-DATA-CONFIG-SNAPSHOT-001",
       "checkpointId": "ASM-RUST-PRODUCTION-RELEASE-001"
@@ -186,11 +186,11 @@
         "A compiler check"
       ],
       "answerIndex": 1,
-      "itemChecksum": "06f0fc4e01c47a95e40bb8452aa9e6b0a2468fbbf28534a49fdb49e189167c7f",
+      "itemChecksum": "f45a0eccc638de71ff36b16a50c5ed5dbb83f7108ba62f85bd7ae8bc1326e241",
       "primaryOutcomeId": "OUT-RUST-DESIGN-TEST-ORACLE-001",
       "rubric": "Choose an oracle that kills the plausible order-losing implementation.",
       "support": "none",
-      "explanation": "The repeated non-sorted input verifies both deduplication and first-seen order.",
+      "explanation": "The repeated, non-sorted input forces the implementation to remove the second b while preserving first-seen order. A plain set or sorted output fails this oracle even if its length looks correct.",
       "remediationLessonId": "CON-RUST-TEST-ORACLE-001",
       "independentPracticeId": "EXE-ALG-DUPLICATE-COUNTS-001",
       "checkpointId": "ASM-RUST-TEST-DEBUG-TRANSFER-001"
@@ -207,11 +207,11 @@
         "Disable the borrow checker"
       ],
       "answerIndex": 0,
-      "itemChecksum": "762b9496626a414cad60029d3ce01253ef23a4916b172a1cfce0b35908d2b697",
+      "itemChecksum": "3dbb2579d9dc27c0583c0fa4b746627dc516a4b1f2ba3f7c2f6fd9c016e785e3",
       "primaryOutcomeId": "OUT-RUST-VERIFY-ACTIVE-TOOLCHAIN-001",
       "rubric": "Use active-toolchain evidence before speculative edits.",
       "support": "compiler",
-      "explanation": "The normalized diagnostic identifies the moved value and causal spans.",
+      "explanation": "E0382's primary and secondary spans identify the ownership transfer and the later invalid use. Reading that evidence first distinguishes a real ownership redesign from an unnecessary clone or unrelated edit.",
       "remediationLessonId": "CON-RUST-TOOLCHAIN-RESOLUTION-001",
       "independentPracticeId": "EXE-LEARN-INDEPENDENCE-PACKET-001",
       "checkpointId": "ASM-RUST-TOOLCHAIN-WORKFLOW-001"
@@ -228,11 +228,11 @@
         "An unbounded channel with no shutdown"
       ],
       "answerIndex": 1,
-      "itemChecksum": "3a56db4aecacdf96fe75c52b6eac3738c2c25e5697b8f9aa88bbea0d5bc8d6f1",
+      "itemChecksum": "c394ab5f34a4bc981219c4b70ff8821e700d3dcb7038b2c112d094a38e6c6ecc",
       "primaryOutcomeId": "OUT-RUST-TEST-CONCURRENCY-INVARIANT-001",
       "rubric": "Preserve thread-safe ownership and name the deterministic final invariant.",
       "support": "none",
-      "explanation": "Arc shares ownership across threads and Mutex guards mutation.",
+      "explanation": "Arc gives each worker shared ownership of the same allocation, while Mutex permits one mutation guard at a time. Joining all workers before reading establishes the deterministic final-count invariant.",
       "remediationLessonId": "CON-RUST-DETERMINISTIC-CONCURRENCY-TEST-001",
       "independentPracticeId": "EXE-DATA-BOUNDED-PIPELINE-001",
       "checkpointId": "ASM-RUST-NATIVE-CONCURRENCY-001"
@@ -249,11 +249,11 @@
         "The runtime has unlimited worker threads"
       ],
       "answerIndex": 1,
-      "itemChecksum": "e4085abfe8d21560472a9d72c1628826ba27d124060154bb5efeb742f40fce6c",
+      "itemChecksum": "5c3ff06c27fb560f9eee7e183bcf20d3aff2a03e271103c7539599cb88ef1b72",
       "primaryOutcomeId": "OUT-RUST-CHOOSE-CONCURRENCY-MODEL-001",
       "rubric": "Account for cancellation, child cleanup, and blocking boundaries.",
       "support": "bundled_docs",
-      "explanation": "Structured cleanup prevents orphaned work and makes termination observable.",
+      "explanation": "Structured cancellation propagates shutdown, awaits child-task cleanup, and moves blocking work off executor threads. That makes termination observable and prevents detached tasks or synchronous calls from stalling the runtime.",
       "remediationLessonId": "CON-RUST-ASYNC-SUITABILITY-001",
       "independentPracticeId": "EXE-DATA-PROTO-TCP-COMMAND-001",
       "checkpointId": "ASM-RUST-NATIVE-CONCURRENCY-001"
@@ -312,11 +312,11 @@
         "Restart repeatedly until the graph looks normal"
       ],
       "answerIndex": 1,
-      "itemChecksum": "1e2d5173f33295f57f5a1a12673950c38a913ac6c0da94fd25429261e425a7d1",
+      "itemChecksum": "63712b8b89549b44d5d081cf2d91af6d47a4544e0db06fc3c7d41965c6adfa7e",
       "primaryOutcomeId": "OUT-DATA-OBSERVE-INVESTIGATE-001",
       "rubric": "Commit an evidence-linked hypothesis before mitigation and distinguish symptom from cause.",
       "support": "none",
-      "explanation": "Cross-signal evidence narrows the causal path without hiding the symptom.",
+      "explanation": "Correlating latency, saturation, error, and deployment signals narrows the causal path before intervention. Recording the hypothesis and evidence keeps mitigation reversible and separates symptom relief from root cause.",
       "remediationLessonId": "CON-DATA-TELEMETRY-CONTEXT-001",
       "independentPracticeId": "EXE-DATA-TRACE-INVESTIGATION-001",
       "checkpointId": "ASM-DATA-OBSERVABILITY-SLO-001"

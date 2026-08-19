@@ -12,29 +12,151 @@
     "minimumToolchain",
     "aliases",
     "sources",
+    "knowledgeMapping",
+    "concepts",
+    "outcomes",
     "modules",
     "lessons",
     "exercises",
     "projects",
     "stages",
     "edges",
-    "edgeKinds"
+    "edgeKinds",
+    "library"
   ],
   "properties": {
-    "schemaVersion": { "const": 2 },
-    "releaseId": { "$ref": "#/$defs/id" },
-    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
-    "generatedAt": { "type": "string", "format": "date-time" },
-    "minimumToolchain": { "type": "string", "minLength": 1 },
-    "aliases": { "type": "object", "additionalProperties": { "$ref": "#/$defs/id" } },
-    "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
-    "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
-    "lessons": { "type": "array", "items": { "$ref": "#/$defs/lesson" } },
-    "exercises": { "type": "array", "items": { "$ref": "#/$defs/exercise" } },
-    "projects": { "type": "array", "items": { "$ref": "#/$defs/project" } },
-    "stages": { "type": "array", "items": { "$ref": "#/$defs/stage" } },
-    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
-    "edgeKinds": { "type": "array", "items": { "$ref": "#/$defs/edgeKind" } }
+    "schemaVersion": {
+      "const": 2
+    },
+    "releaseId": {
+      "$ref": "#/$defs/id"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "minimumToolchain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "knowledgeMapping": {
+      "$ref": "#/$defs/knowledgeMapping"
+    },
+    "concepts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/canonicalKnowledgeNode"
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/canonicalKnowledgeNode"
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/module"
+      }
+    },
+    "lessons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lesson"
+      }
+    },
+    "exercises": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/exercise"
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project"
+      }
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stage"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "edgeKinds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edgeKind"
+      }
+    },
+    "library": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "author", "url", "license", "use", "kind", "level", "blurb"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "repo": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "license": {
+            "type": "string",
+            "minLength": 3
+          },
+          "use": {
+            "const": "link-only"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "level": {
+            "enum": ["foundation", "intermediate", "advanced", "reference", "practice"]
+          },
+          "blurb": {
+            "type": "string",
+            "minLength": 40
+          }
+        }
+      }
+    }
   },
   "$defs": {
     "id": {
@@ -45,23 +167,131 @@
     "nonemptyStrings": {
       "type": "array",
       "minItems": 1,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "knowledgeMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "canonicalGraphPath",
+        "canonicalGraphSha256",
+        "extensionPath",
+        "extensionSha256"
+      ],
+      "properties": {
+        "path": {
+          "const": "content/curriculum-v2/knowledge-mappings.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "canonicalGraphPath": {
+          "const": "knowledge/feed/generated/tutor-feed.json"
+        },
+        "canonicalGraphSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "extensionPath": {
+          "const": "content/curriculum-v2/knowledge-extension.json"
+        },
+        "extensionSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "canonicalKnowledgeNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "summary", "reviewState", "mappingSource"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 20
+        },
+        "reviewState": {
+          "const": "accepted"
+        },
+        "mappingSource": {
+          "enum": [
+            "knowledge/feed/generated/tutor-feed.json#graphProjection",
+            "content/curriculum-v2/knowledge-extension.json#newNodes",
+            "content/curriculum-v2/knowledge-extension.json#promotions"
+          ]
+        }
+      }
+    },
+    "hint": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["level", "title", "text"],
+          "properties": {
+            "level": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
     },
     "file": {
       "type": "object",
       "required": ["path", "content"],
       "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "content": { "type": "string" }
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string"
+        }
       }
     },
     "test": {
       "allOf": [
-        { "$ref": "#/$defs/file" },
+        {
+          "$ref": "#/$defs/file"
+        },
         {
           "type": "object",
           "required": ["name"],
-          "properties": { "name": { "type": "string", "minLength": 1 } }
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mode": {
+              "enum": ["append", "write"]
+            }
+          }
         }
       ]
     },
@@ -69,17 +299,43 @@
       "type": "object",
       "required": ["visible", "hidden", "regression"],
       "properties": {
-        "visible": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/test" } },
-        "hidden": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/test" } },
-        "regression": { "type": "array", "items": { "$ref": "#/$defs/test" } }
+        "visible": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/test"
+          }
+        },
+        "hidden": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/test"
+          }
+        },
+        "regression": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/test"
+          }
+        }
       }
     },
     "workspace": {
       "type": "object",
       "required": ["manifest", "files"],
       "properties": {
-        "manifest": { "type": "string", "minLength": 1 },
-        "files": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/file" } }
+        "manifest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        }
       }
     },
     "evaluator": {
@@ -93,20 +349,245 @@
         "expectedArtifacts"
       ],
       "properties": {
-        "mode": { "const": "cargo-workspace" },
-        "editableFiles": { "$ref": "#/$defs/nonemptyStrings" },
-        "lockedFiles": { "$ref": "#/$defs/nonemptyStrings" },
-        "commands": { "$ref": "#/$defs/nonemptyStrings" },
+        "mode": {
+          "const": "cargo-workspace"
+        },
+        "editableFiles": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "lockedFiles": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "commands": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
         "limits": {
           "type": "object",
           "required": ["timeoutMs", "memoryMb", "outputKb"],
           "properties": {
-            "timeoutMs": { "type": "integer", "minimum": 1 },
-            "memoryMb": { "type": "integer", "minimum": 16 },
-            "outputKb": { "type": "integer", "minimum": 1 }
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "memoryMb": {
+              "type": "integer",
+              "minimum": 16
+            },
+            "outputKb": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         },
-        "expectedArtifacts": { "$ref": "#/$defs/nonemptyStrings" }
+        "expectedArtifacts": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "packageRoot": {
+          "type": "string",
+          "pattern": "^exercises/[0-9]{2}_[a-z0-9_]+/[0-9]{2}_[a-z0-9_]+$"
+        },
+        "suiteId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suiteSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "manifestPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["editable", "dependencies"],
+          "properties": {
+            "editable": {
+              "type": "boolean"
+            },
+            "package": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "version", "edition"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "edition": {
+                  "enum": ["2021", "2024"]
+                }
+              }
+            },
+            "dependencies": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "runtimePolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["loopback"],
+          "properties": {
+            "loopback": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "bookSourceDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pageId",
+        "title",
+        "sourceCommit",
+        "sourcePath",
+        "canonicalUrl",
+        "sha256",
+        "resolvedSha256",
+        "license",
+        "attribution",
+        "changeNotes",
+        "headings",
+        "blocks"
+      ],
+      "properties": {
+        "pageId": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "sourcePath": {
+          "type": "string",
+          "pattern": "^src/.+\\.md$"
+        },
+        "canonicalUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "resolvedSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "license": {
+          "const": "MIT OR Apache-2.0"
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changeNotes": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "headings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "id", "text"],
+            "properties": {
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 6
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/typedNode"
+          }
+        }
+      }
+    },
+    "mainmatterSourceDocument": {
+      "type": "object",
+      "required": [
+        "exerciseId",
+        "title",
+        "sequence",
+        "sourceCommit",
+        "sourcePath",
+        "canonicalUrl",
+        "sha256",
+        "license",
+        "attribution",
+        "changeNotes",
+        "blocks"
+      ],
+      "properties": {
+        "exerciseId": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 98
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "sourcePath": {
+          "type": "string",
+          "pattern": "^book/src/.+\\.md$"
+        },
+        "canonicalUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "license": {
+          "const": "CC-BY-NC-4.0"
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changeNotes": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typedNode"
+          }
+        }
       }
     },
     "source": {
@@ -122,15 +603,761 @@
         "use"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string" },
-        "publisher": { "type": "string" },
-        "canonicalUrl": { "type": "string", "format": "uri" },
-        "snapshot": { "type": "string" },
-        "license": { "type": "string", "minLength": 1 },
-        "attribution": { "type": "string", "minLength": 1 },
-        "use": { "type": "string" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "publisher": {
+          "type": "string"
+        },
+        "canonicalUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "snapshot": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "use": {
+          "type": "string"
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "sourcePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "documentPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "documentSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "snapshotMetadata": {
+          "type": "object"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceResource"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "enum": ["SRC-RUST-BOOK-STABLE", "SRC-MAINMATTER-100"]
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "required": [
+              "sourceCommit",
+              "sourcePath",
+              "documentPath",
+              "documentSha256",
+              "snapshotMetadata"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "SRC-MAINMATTER-100"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "required": ["resources"]
+          }
+        }
+      ]
+    },
+    "sourceResource": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "sequence",
+        "scored",
+        "sourceCommit",
+        "sourcePath",
+        "canonicalUrl",
+        "sha256",
+        "license",
+        "attribution",
+        "changeNotes",
+        "blocks"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scored": {
+          "type": "boolean"
+        },
+        "sourceCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "sourcePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonicalUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changeNotes": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typedNode"
+          }
+        }
       }
+    },
+    "resolvedTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "pageId", "sourcePath", "canonicalUrl"],
+          "properties": {
+            "kind": {
+              "const": "bookPage"
+            },
+            "pageId": {
+              "$ref": "#/$defs/id"
+            },
+            "sourcePath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "canonicalUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "anchor": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "documentId", "sourcePath", "canonicalUrl"],
+          "properties": {
+            "kind": {
+              "const": "sourceDocument"
+            },
+            "documentId": {
+              "$ref": "#/$defs/id"
+            },
+            "sourcePath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "canonicalUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "anchor": {
+              "type": "string",
+              "minLength": 1
+            },
+            "compatibilityAlias": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "url"],
+          "properties": {
+            "kind": {
+              "const": "external"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^(https?://|mailto:)"
+            }
+          }
+        }
+      ]
+    },
+    "typedNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": [
+            "blockquote",
+            "codeBlock",
+            "emphasis",
+            "footnoteDefinition",
+            "footnoteReference",
+            "hardBreak",
+            "heading",
+            "inlineCode",
+            "inlineMath",
+            "link",
+            "list",
+            "listItem",
+            "listing",
+            "listingCaption",
+            "noteCallout",
+            "paragraph",
+            "softBreak",
+            "strong",
+            "strikethrough",
+            "table",
+            "tableCell",
+            "tableHead",
+            "tableRow",
+            "text",
+            "typedElement",
+            "warningCallout"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/typedNode"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "blockquote",
+                  "emphasis",
+                  "hardBreak",
+                  "listItem",
+                  "paragraph",
+                  "softBreak",
+                  "strong",
+                  "strikethrough",
+                  "tableCell",
+                  "tableHead",
+                  "tableRow"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": false,
+              "text": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["text", "inlineCode", "inlineMath"]
+              }
+            }
+          },
+          "then": {
+            "required": ["text"],
+            "properties": {
+              "attributes": false,
+              "children": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "heading"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "level"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 6
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["footnoteDefinition", "footnoteReference"]
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label"],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "codeBlock"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "info",
+                  "classification",
+                  "runnable",
+                  "ordinal",
+                  "byteLength",
+                  "textSha256"
+                ],
+                "properties": {
+                  "info": {
+                    "type": "string"
+                  },
+                  "classification": {
+                    "enum": ["display", "runnable", "compile_fail", "panic", "context_fragment"]
+                  },
+                  "runnable": {
+                    "const": false
+                  },
+                  "ordinal": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "byteLength": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "textSha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "link"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["sourceTarget", "title", "target"],
+                "properties": {
+                  "sourceTarget": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "$ref": "#/$defs/resolvedTarget"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "list"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["ordered"],
+                "properties": {
+                  "ordered": {
+                    "type": "boolean"
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "table"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["alignments"],
+                "properties": {
+                  "alignments": {
+                    "type": "array",
+                    "items": {
+                      "enum": ["none", "left", "center", "right"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "typedElement"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["element", "id"],
+                    "properties": {
+                      "element": {
+                        "const": "a"
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["element"],
+                    "properties": {
+                      "element": {
+                        "enum": ["code", "em", "figcaption", "figure", "kbd", "pre", "sup"]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["element", "src", "alt"],
+                    "properties": {
+                      "element": {
+                        "const": "img"
+                      },
+                      "src": {
+                        "type": "string",
+                        "pattern": "^(?!/)(?!.*\\.\\.)(?!.*:).+$"
+                      },
+                      "alt": {
+                        "type": "string"
+                      },
+                      "class": {
+                        "enum": ["center", "ferris-explain"]
+                      },
+                      "widthPercent": {
+                        "const": 50
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["element"],
+                    "anyOf": [
+                      {
+                        "required": ["class"]
+                      },
+                      {
+                        "required": ["id"]
+                      }
+                    ],
+                    "properties": {
+                      "element": {
+                        "const": "span"
+                      },
+                      "class": {
+                        "enum": ["caption", "filename"]
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "typedElement"
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "element": {
+                    "const": "img"
+                  }
+                },
+                "required": ["element"]
+              }
+            },
+            "required": ["attributes"]
+          },
+          "then": {
+            "properties": {
+              "children": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "listing"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes", "children"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["sourcePreprocessor", "number", "id"],
+                    "properties": {
+                      "sourcePreprocessor": {
+                        "const": "trpl-listing"
+                      },
+                      "number": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9-]+$"
+                      },
+                      "id": {
+                        "type": "string",
+                        "pattern": "^listing-[A-Za-z0-9-]+$"
+                      },
+                      "fileName": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["sourcePreprocessor"],
+                    "properties": {
+                      "sourcePreprocessor": {
+                        "const": "trpl-listing"
+                      },
+                      "fileName": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "listingCaption"
+              }
+            }
+          },
+          "then": {
+            "required": ["children"],
+            "properties": {
+              "text": false,
+              "attributes": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "noteCallout"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes", "children"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["sourcePreprocessor", "variant"],
+                "properties": {
+                  "sourcePreprocessor": {
+                    "const": "trpl-note"
+                  },
+                  "variant": {
+                    "enum": ["label", "heading"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "warningCallout"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "text": false,
+              "attributes": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["element", "class"],
+                "properties": {
+                  "element": {
+                    "const": "div"
+                  },
+                  "class": {
+                    "const": "warning"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "module": {
       "type": "object",
@@ -144,13 +1371,32 @@
         "prerequisiteModuleIds"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "number": { "type": "integer", "minimum": 1, "maximum": 21 },
-        "title": { "type": "string" },
-        "summary": { "type": "string" },
-        "lessonIds": { "$ref": "#/$defs/nonemptyStrings" },
-        "sourceIds": { "$ref": "#/$defs/nonemptyStrings" },
-        "prerequisiteModuleIds": { "type": "array", "items": { "$ref": "#/$defs/id" } }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 22
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "lessonIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "prerequisiteModuleIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
       }
     },
     "lesson": {
@@ -161,6 +1407,18 @@
         "title",
         "slug",
         "aliases",
+        "pageSequence",
+        "pageRole",
+        "sourceDocumentId",
+        "sourcePath",
+        "canonicalUrl",
+        "sourceSha256",
+        "previousPageId",
+        "nextPageId",
+        "conceptIds",
+        "outcomeIds",
+        "mappingRationale",
+        "mappingSource",
         "summary",
         "estimateMinutes",
         "difficulty",
@@ -179,38 +1437,185 @@
         "sourceIds",
         "sectionSources",
         "completion",
-        "review"
+        "review",
+        "furtherReading",
+        "sourceDocument"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "moduleId": { "$ref": "#/$defs/id" },
-        "title": { "type": "string" },
-        "slug": { "type": "string" },
-        "aliases": { "type": "array", "items": { "type": "string" } },
-        "summary": { "type": "string", "minLength": 40 },
-        "estimateMinutes": { "type": "integer", "minimum": 1 },
-        "difficulty": { "enum": ["beginner", "intermediate", "advanced"] },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "moduleId": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pageSequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 109
+        },
+        "pageRole": {
+          "enum": ["lesson", "context", "reference"]
+        },
+        "sourceDocumentId": {
+          "$ref": "#/$defs/id"
+        },
+        "sourcePath": {
+          "type": "string",
+          "pattern": "^src/(?:ch\\d{2}|appendix)-.+\\.md$"
+        },
+        "canonicalUrl": {
+          "type": "string",
+          "pattern": "^https://doc\\.rust-lang\\.org/book/(?:ch\\d{2}|appendix)-.+\\.html$"
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "previousPageId": {
+          "type": ["string", "null"]
+        },
+        "nextPageId": {
+          "type": ["string", "null"]
+        },
+        "conceptIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "outcomeIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "mappingRationale": {
+          "type": "string",
+          "minLength": 20
+        },
+        "mappingSource": {
+          "const": "content/curriculum-v2/knowledge-mappings.json"
+        },
+        "pilot": {
+          "type": "boolean"
+        },
+        "sourceDocument": {
+          "$ref": "#/$defs/bookSourceDocument"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 40
+        },
+        "estimateMinutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "difficulty": {
+          "enum": ["beginner", "intermediate", "advanced"]
+        },
         "objectives": {
           "type": "array",
           "minItems": 2,
           "maxItems": 4,
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "prerequisiteIds": { "type": "array", "items": { "$ref": "#/$defs/id" } },
-        "mentalModel": { "type": "string", "minLength": 40 },
-        "keyTerms": { "type": "array", "minItems": 3 },
-        "syntaxExamples": { "type": "array", "minItems": 1 },
-        "workedTrace": { "type": "array", "minItems": 3 },
-        "misconceptions": { "type": "array", "minItems": 1 },
-        "recallChecks": { "type": "array", "minItems": 1 },
-        "terminalWork": { "type": "object" },
-        "practiceBridge": { "type": "array", "minItems": 1 },
-        "projectTransfer": { "type": "array" },
-        "recap": { "$ref": "#/$defs/nonemptyStrings" },
-        "sourceIds": { "$ref": "#/$defs/nonemptyStrings" },
-        "sectionSources": { "type": "array", "minItems": 1 },
-        "completion": { "type": "object" },
-        "review": { "type": "object" }
+        "prerequisiteIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "mentalModel": {
+          "type": "string",
+          "minLength": 40
+        },
+        "keyTerms": {
+          "type": "array",
+          "minItems": 3
+        },
+        "syntaxExamples": {
+          "type": "array",
+          "minItems": 1
+        },
+        "workedTrace": {
+          "type": "array",
+          "minItems": 3
+        },
+        "misconceptions": {
+          "type": "array",
+          "minItems": 1
+        },
+        "recallChecks": {
+          "type": "array",
+          "minItems": 1
+        },
+        "terminalWork": {
+          "type": "object"
+        },
+        "practiceBridge": {
+          "type": "array"
+        },
+        "projectTransfer": {
+          "type": "array"
+        },
+        "recap": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "sectionSources": {
+          "type": "array",
+          "minItems": 1
+        },
+        "completion": {
+          "type": "object"
+        },
+        "review": {
+          "type": "object"
+        },
+        "furtherReading": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["libraryId", "library", "title", "url", "why", "license", "level"],
+            "properties": {
+              "libraryId": {
+                "type": "string"
+              },
+              "library": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "why": {
+                "type": "string",
+                "minLength": 20
+              },
+              "license": {
+                "type": "string"
+              },
+              "level": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "exercise": {
@@ -246,58 +1651,285 @@
         "provenance"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "family": { "enum": ["mainmatter", "interview"] },
-        "sequence": { "type": "integer", "minimum": 1 },
-        "title": { "type": "string" },
-        "moduleId": { "$ref": "#/$defs/id" },
-        "lessonId": { "$ref": "#/$defs/id" },
-        "concepts": { "$ref": "#/$defs/nonemptyStrings" },
-        "difficulty": { "enum": ["easy", "medium", "hard"] },
-        "estimateMinutes": { "type": "integer", "minimum": 1 },
-        "runnable": { "const": true },
-        "scored": { "type": "boolean" },
-        "requirement": { "enum": ["core", "stretch"] },
-        "whyNow": { "type": "string", "minLength": 20 },
-        "prepares": { "$ref": "#/$defs/nonemptyStrings" },
-        "prerequisiteIds": { "$ref": "#/$defs/nonemptyStrings" },
-        "outcomes": { "$ref": "#/$defs/nonemptyStrings" },
-        "prompt": { "type": "string", "minLength": 30 },
-        "constraints": { "$ref": "#/$defs/nonemptyStrings" },
-        "starter": { "$ref": "#/$defs/workspace" },
-        "tests": { "$ref": "#/$defs/tests" },
-        "evaluator": { "$ref": "#/$defs/evaluator" },
-        "hints": { "type": "array", "minItems": 3, "items": { "type": "string", "minLength": 1 } },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "family": {
+          "enum": ["mainmatter", "interview"]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "moduleId": {
+          "$ref": "#/$defs/id"
+        },
+        "lessonId": {
+          "$ref": "#/$defs/id"
+        },
+        "concepts": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "conceptIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "difficulty": {
+          "enum": ["easy", "medium", "hard"]
+        },
+        "estimateMinutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "runnable": {
+          "const": true
+        },
+        "scored": {
+          "type": "boolean"
+        },
+        "requirement": {
+          "enum": ["core", "stretch"]
+        },
+        "whyNow": {
+          "type": "string",
+          "minLength": 20
+        },
+        "prepares": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "prerequisiteIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "outcomes": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "outcomeIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "sourceOutcomeStatements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "mappingRationale": {
+          "type": "string",
+          "minLength": 20
+        },
+        "mappingSource": {
+          "const": "content/curriculum-v2/knowledge-mappings.json"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 30
+        },
+        "constraints": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "starter": {
+          "$ref": "#/$defs/workspace"
+        },
+        "tests": {
+          "$ref": "#/$defs/tests"
+        },
+        "evaluator": {
+          "$ref": "#/$defs/evaluator"
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "$ref": "#/$defs/hint"
+          }
+        },
         "explanation": {
           "type": "object",
           "required": ["purpose", "approach", "compilerImplications", "referenceRationale"]
         },
-        "commonMistakes": { "$ref": "#/$defs/nonemptyStrings" },
-        "tradeoffs": { "$ref": "#/$defs/nonemptyStrings" },
+        "commonMistakes": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "tradeoffs": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
         "referenceSolution": {
           "type": "object",
           "required": ["files"],
           "properties": {
-            "files": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/file" } }
+            "files": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/file"
+              }
+            }
           }
         },
-        "externalReferences": { "type": "array" },
+        "externalReferences": {
+          "type": "array"
+        },
         "provenance": {
           "type": "object",
-          "required": ["sourceId", "mode", "license", "attribution", "importedAt", "changeNotes"]
+          "required": ["sourceId", "mode", "license", "attribution", "importedAt", "changeNotes"],
+          "properties": {
+            "sourcePath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sourceCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "starterCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "starterPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "starterCanonicalUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "solutionCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "solutionPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "solutionCanonicalUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "packageHashAlgorithm": {
+              "const": "sha256(canonical-json[path,byteLength,sha256]-v1)"
+            },
+            "starterPackageSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "solutionPackageSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "starterSharedWorkspaceSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "solutionSharedWorkspaceSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "canonicalUrl": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "family": {
+                "const": "mainmatter"
+              }
+            },
+            "required": ["family"]
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "type": "object",
+                "required": [
+                  "sourcePath",
+                  "sourceCommit",
+                  "sha256",
+                  "starterCommit",
+                  "starterPath",
+                  "starterCanonicalUrl",
+                  "solutionCommit",
+                  "solutionPath",
+                  "solutionCanonicalUrl",
+                  "packageHashAlgorithm",
+                  "starterPackageSha256",
+                  "solutionPackageSha256",
+                  "starterSharedWorkspaceSha256",
+                  "solutionSharedWorkspaceSha256",
+                  "canonicalUrl"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "project": {
       "type": "object",
       "required": ["id", "title", "summary", "stageIds", "sourceIds"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string" },
-        "summary": { "type": "string" },
-        "stageIds": { "type": "array", "minItems": 9, "maxItems": 9 },
-        "sourceIds": { "$ref": "#/$defs/nonemptyStrings" }
-      }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "stageIds": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "pilot": {
+                "const": true
+              }
+            },
+            "required": ["pilot"]
+          },
+          "then": {
+            "required": ["sourceDocument"],
+            "properties": {
+              "evaluator": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evaluator"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "packageRoot",
+                      "suiteId",
+                      "suiteSha256",
+                      "manifestPolicy",
+                      "runtimePolicy"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "stage": {
       "type": "object",
@@ -324,47 +1956,123 @@
         "relationships"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "projectId": { "$ref": "#/$defs/id" },
-        "sequence": { "type": "integer", "minimum": 1, "maximum": 9 },
-        "title": { "type": "string" },
-        "brief": { "type": "string" },
-        "boundaries": { "$ref": "#/$defs/nonemptyStrings" },
-        "nonGoals": { "$ref": "#/$defs/nonemptyStrings" },
-        "entryReadiness": { "$ref": "#/$defs/nonemptyStrings" },
-        "relatedLessonIds": { "$ref": "#/$defs/nonemptyStrings" },
-        "relatedExerciseIds": { "type": "array" },
-        "predecessorStageId": { "type": ["string", "null"] },
-        "starter": { "$ref": "#/$defs/workspace" },
-        "tests": { "$ref": "#/$defs/tests" },
-        "evaluator": { "$ref": "#/$defs/evaluator" },
-        "definitionOfDone": { "$ref": "#/$defs/nonemptyStrings" },
-        "rubric": { "type": "array", "minItems": 1 },
-        "artifacts": { "type": "array", "minItems": 1 },
-        "hints": { "type": "array", "minItems": 3 },
-        "referenceSolution": { "type": "object" },
-        "relationships": { "type": "array" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "projectId": {
+          "$ref": "#/$defs/id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "title": {
+          "type": "string"
+        },
+        "brief": {
+          "type": "string"
+        },
+        "boundaries": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "nonGoals": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "entryReadiness": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "relatedLessonIds": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "relatedExerciseIds": {
+          "type": "array"
+        },
+        "predecessorStageId": {
+          "type": ["string", "null"]
+        },
+        "starter": {
+          "$ref": "#/$defs/workspace"
+        },
+        "tests": {
+          "$ref": "#/$defs/tests"
+        },
+        "evaluator": {
+          "$ref": "#/$defs/evaluator"
+        },
+        "definitionOfDone": {
+          "$ref": "#/$defs/nonemptyStrings"
+        },
+        "rubric": {
+          "type": "array",
+          "minItems": 1
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 3
+        },
+        "referenceSolution": {
+          "type": "object"
+        },
+        "relationships": {
+          "type": "array"
+        }
       }
     },
     "edge": {
       "type": "object",
-      "required": ["id", "sourceId", "targetId", "kind", "rationale"],
+      "required": ["id", "aliases", "sourceId", "targetId", "kind", "rationale", "provenance"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "sourceId": { "$ref": "#/$defs/id" },
-        "targetId": { "$ref": "#/$defs/id" },
-        "kind": { "type": "string" },
-        "rationale": { "type": "string", "minLength": 10 }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "aliases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "sourceId": {
+          "$ref": "#/$defs/id"
+        },
+        "targetId": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 10
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 3
+        }
       }
     },
     "edgeKind": {
       "type": "object",
       "required": ["kind", "label", "direction", "description"],
       "properties": {
-        "kind": { "type": "string" },
-        "label": { "type": "string" },
-        "direction": { "enum": ["directed", "symmetric"] },
-        "description": { "type": "string" }
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": ["directed", "symmetric"]
+        },
+        "description": {
+          "type": "string"
+        }
       }
     }
   }

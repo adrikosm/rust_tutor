@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { lazy, type ReactNode, Suspense, useEffect, useMemo, useState } from "react";
 import {
+  acceptPracticeItem,
   cancelEvaluation,
   evaluateRust,
   evaluateRustStreaming,
@@ -10,19 +11,21 @@ import {
   getDashboardSnapshot,
   getErrors,
   getJournal,
+  getLearnTracks,
   getPracticeCatalog,
   getPracticeItem,
   getQuestionBank,
   getTutorContent,
   getWorkbenchProgress,
-  revealPracticeItem,
   type PublicQuestion,
   type QuestionResponse,
   recordAttempt,
+  revealPracticeItem,
   submitQuestion,
 } from "../../lib/service-client";
 
 import { ContextStrip, PageHero, statusLabel } from "./LearningShared";
+import { SourceDocumentBlocks, type SourceNode } from "./source-document";
 
 const MonacoSourceEditor = lazy(() =>
   import("../workbench/MonacoSourceEditor").then((module) => ({
@@ -31,6 +34,59 @@ const MonacoSourceEditor = lazy(() =>
 );
 
 const DRAFT_TTL = 7 * 24 * 60 * 60 * 1_000;
+
+export type WorkbenchFile = { path: string; content: string; editable: boolean };
+
+export function editableWorkspacePayload(files: readonly WorkbenchFile[]) {
+  return Object.fromEntries(
+    files.filter((file) => file.editable).map((file) => [file.path, file.content]),
+  );
+}
+
+export function canAcceptPractice(input: {
+  plan: string;
+  reflection: string;
+  confidence?: number;
+  evaluatorRunId?: string;
+  accepted: boolean;
+}) {
+  return Boolean(
+    input.plan.trim() &&
+      input.reflection.trim() &&
+      input.confidence &&
+      input.evaluatorRunId &&
+      input.accepted,
+  );
+}
+
+export function WorkspaceFileButtons({
+  files,
+  activePath,
+  onSelect,
+}: {
+  files: readonly WorkbenchFile[];
+  activePath: string;
+  onSelect: (path: string) => void;
+}) {
+  return (
+    // A fieldset groups the files natively: every button stays in the tab order,
+    // unlike a tab/toolbar pattern that would need roving tabindex.
+    <fieldset className="practice-file-tabs">
+      <legend className="sr-only">Workspace files</legend>
+      {files.map((file) => (
+        <button
+          type="button"
+          aria-pressed={file.path === activePath}
+          key={file.path}
+          onClick={() => onSelect(file.path)}
+        >
+          {file.path}
+          {!file.editable && <span>read only</span>}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
 
 function QuestionWorkbench() {
   const bank = useQuery({ queryKey: ["question-bank"], queryFn: getQuestionBank });
@@ -465,6 +521,43 @@ export function QuestionCard({ question }: { question: PublicQuestion }) {
 
 export type PracticeView = "next" | "rust" | "interview" | "questions";
 
+type AttemptPayload = Parameters<typeof recordAttempt>[0];
+type RecordingResult =
+  | Awaited<ReturnType<typeof recordAttempt>>
+  | Awaited<ReturnType<typeof acceptPracticeItem>>;
+
+export function resolveAttemptConceptId(
+  v2Record: { concepts: readonly string[] } | undefined,
+  legacyConceptId?: string,
+): string | undefined {
+  return v2Record ? v2Record.concepts[0] : legacyConceptId;
+}
+
+export function canRecordAttempt(input: {
+  reflection: string;
+  evaluatorRunId?: string;
+  conceptId?: string;
+}): boolean {
+  return Boolean(input.reflection.trim() && input.evaluatorRunId && input.conceptId);
+}
+
+export function buildAttemptPayload(
+  input: Omit<AttemptPayload, "conceptId" | "evaluatorRunId"> & {
+    conceptId?: string;
+    evaluatorRunId?: string;
+  },
+): AttemptPayload {
+  if (!input.evaluatorRunId) {
+    throw new Error("Submit the hidden tests first; check/run output is not scored evidence.");
+  }
+  if (!input.conceptId) {
+    throw new Error(
+      "This exercise has no reviewed canonical concept mapping; evidence was not recorded.",
+    );
+  }
+  return { ...input, conceptId: input.conceptId, evaluatorRunId: input.evaluatorRunId };
+}
+
 export function PracticePage({
   exerciseId,
   view = "next",
@@ -486,7 +579,7 @@ export function PracticePage({
 }
 
 function workbenchLink(itemId: string) {
-  return itemId.startsWith("EXE-ALG")
+  return itemId.startsWith("EXE-ALG") || itemId.startsWith("INT-")
     ? { to: "/practice/algorithms/$problemId" as const, params: { problemId: itemId } }
     : { to: "/practice/rust/$exerciseId" as const, params: { exerciseId: itemId } };
 }
@@ -543,6 +636,43 @@ function PromptBody({ text }: { text: string }) {
   );
 }
 
+const explanationLabels: Record<string, string> = {
+  purpose: "Why this exercise matters",
+  approach: "Approach",
+  invariant: "Invariant",
+  complexityDerivation: "Complexity",
+  idiomaticRust: "Idiomatic Rust",
+  compilerImplications: "What the compiler checks",
+  referenceRationale: "Why the reference works",
+  followUps: "Try next",
+};
+
+export function PracticeExplanation({
+  explanation,
+}: {
+  explanation: string | Record<string, unknown>;
+}) {
+  if (typeof explanation === "string") return <p>{explanation}</p>;
+  return (
+    <div className="solution-reveal__sections">
+      {Object.entries(explanation).map(([key, value]) => (
+        <section key={key}>
+          <h4>{explanationLabels[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2")}</h4>
+          {Array.isArray(value) ? (
+            <ul>
+              {value.map((item) => (
+                <li key={String(item)}>{String(item)}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>{String(value)}</p>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 /** Dumb line classifier for cargo output; no ANSI parsing by design. */
 export function consoleLineTone(line: string): "ok" | "bad" | "warn" | undefined {
   const trimmed = line.trim();
@@ -594,6 +724,85 @@ async function getPracticeOrder() {
   return items;
 }
 
+const ARC_TITLES: Record<string, string> = {
+  "01_intro": "Intro",
+  "02_basic_calculator": "Basic calculator",
+  "03_ticket_v1": "Ticket v1",
+  "04_traits": "Traits",
+  "05_ticket_v2": "Ticket v2",
+  "06_ticket_management": "Ticket management",
+  "07_threads": "Threads",
+  "08_futures": "Futures",
+};
+
+/**
+ * The eight Mainmatter arcs, in upstream order.
+ *
+ * The sequence is advisory: "next up" is highlighted and nothing later is
+ * locked, so a learner can jump to the arc they actually need.
+ */
+function MainmatterArcs({ rowState }: { rowState: (itemId: string) => string }) {
+  const tracks = useQuery({ queryKey: ["learn-tracks"], queryFn: getLearnTracks });
+  if (tracks.isPending) return <p role="status">Loading the Mainmatter practice arcs…</p>;
+  if (tracks.isError) return <p role="alert">{tracks.error.message}</p>;
+  const { practice, nextRecommendation } = tracks.data;
+  const resume = nextRecommendation.practice;
+  const currentArc = practice.arcs.find((arc) =>
+    arc.exercises.some((exercise) => exercise.id === resume?.id),
+  );
+  return (
+    <section className="practice-arcs" aria-label="Mainmatter practice arcs">
+      <div className="practice-arcs__status">
+        <p>
+          <strong>
+            {practice.progress.completed} of {practice.progress.total}
+          </strong>{" "}
+          exercises accepted · 100 Exercises To Learn Rust, CC BY-NC 4.0
+        </p>
+        {resume && (
+          <Link className="button" {...workbenchLink(resume.id)}>
+            {practice.progress.completed === 0 ? "Start" : "Resume"} · {resume.title} →
+          </Link>
+        )}
+      </div>
+      {practice.arcs.map((arc) => (
+        <details key={arc.id} open={arc.id === currentArc?.id}>
+          <summary>
+            <span>
+              <strong>{ARC_TITLES[arc.id] ?? arc.id}</strong>
+              <small>
+                {arc.completed}/{arc.count} accepted
+              </small>
+            </span>
+          </summary>
+          <ol className="practice-rows__arc">
+            {arc.exercises.map((exercise) => (
+              <li key={exercise.id} data-current={exercise.id === resume?.id || undefined}>
+                <Link {...workbenchLink(exercise.id)}>
+                  <span className="practice-rows__body">
+                    <strong>{exercise.title}</strong>
+                    <small>
+                      {exercise.difficulty} · {exercise.estimateMinutes} min
+                      {exercise.suiteReview === "pending" &&
+                        " · practice only — its acceptance tests are still under review"}
+                    </small>
+                  </span>
+                  <span
+                    className="practice-rows__state"
+                    data-state={exercise.completed ? "cleared" : rowState(exercise.id)}
+                  >
+                    {exercise.completed ? "cleared" : rowState(exercise.id)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </details>
+      ))}
+    </section>
+  );
+}
+
 function PracticeCatalogPage({
   view,
   difficulty,
@@ -607,12 +816,13 @@ function PracticeCatalogPage({
     queryKey: ["practice-v2", view, difficulty, page],
     queryFn: () =>
       getPracticeCatalog({
-        family: view === "rust" ? "mainmatter" : view === "interview" ? "interview" : undefined,
+        family: view === "interview" ? "interview" : undefined,
         difficulty,
         page,
         pageSize: 25,
       }),
-    enabled: view !== "questions",
+    // The Rust view renders the eight Mainmatter arcs instead of a flat page.
+    enabled: view !== "questions" && view !== "rust",
     retry: false,
   });
   const content = useQuery({
@@ -675,7 +885,10 @@ function PracticeCatalogPage({
       ) : (
         <div className="practice-layout">
           <div>
-            {v2.isPending && <p role="status">Loading the curriculum practice release…</p>}
+            {view === "rust" && <MainmatterArcs rowState={rowState} />}
+            {view !== "rust" && v2.isPending && (
+              <p role="status">Loading the curriculum practice release…</p>
+            )}
             {v2.data && (
               <section className="practice-rows" aria-labelledby="practice-v2-title">
                 <h2 id="practice-v2-title" className="sr-only">
@@ -848,6 +1061,7 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
   });
   const legacyExercise = content.data?.exercises.find((entry) => entry.id === exerciseId);
   const v2Record = curriculumItem.data?.item;
+  const reviewedAcceptance = v2Record?.family === "mainmatter" && v2Record.scored;
   const neighbors = useMemo(() => {
     // Same ordering as the catalog page; legacy release order as fallback.
     for (const list of [catalogOrder.data ?? [], content.data?.exercises ?? []]) {
@@ -856,7 +1070,9 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
     }
     return { previous: undefined, next: undefined };
   }, [catalogOrder.data, content.data, exerciseId]);
-  const v2StarterFile = v2Record?.starter?.files.find((file) => file.path.endsWith(".rs"));
+  const v2StarterFile = v2Record?.starter?.files.find(
+    (file) => file.editable === true && file.path.endsWith(".rs"),
+  );
   const v2Starter = v2StarterFile?.content ?? "";
   const visibleTests = v2Record?.tests?.visible ?? [];
   const exercise = useMemo(
@@ -873,7 +1089,18 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
         : undefined),
     [legacyExercise, v2Record, v2Starter],
   );
-  const [source, setSource] = useState("");
+  const starterFiles = useMemo<WorkbenchFile[]>(() => {
+    if (v2Record?.starter?.files.length) {
+      return v2Record.starter.files.map((file) => ({
+        path: file.path,
+        content: file.content,
+        editable: reviewedAcceptance ? file.editable === true : file.editable !== false,
+      }));
+    }
+    return exercise ? [{ path: "src/main.rs", content: exercise.starter, editable: true }] : [];
+  }, [exercise, reviewedAcceptance, v2Record]);
+  const [workspaceFiles, setWorkspaceFiles] = useState<WorkbenchFile[]>([]);
+  const [activeFilePath, setActiveFilePath] = useState("");
   const [sourceVersion, setSourceVersion] = useState(1);
   const [activeRunId, setActiveRunId] = useState<string>();
   const [streamedChunks, setStreamedChunks] = useState<Array<{ channel: string; text: string }>>(
@@ -893,35 +1120,64 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
   >("none");
   const [accessibilityBypass, setAccessibilityBypass] = useState(false);
   useEffect(() => {
-    if (exercise) {
+    if (exercise && starterFiles.length) {
       const key = `rust-tutor:workspace-draft:v1:${exercise.id}`;
       const raw = window.localStorage.getItem(key);
-      let restored = exercise.starter;
+      let restored = starterFiles;
       if (raw) {
         try {
-          const draft = JSON.parse(raw) as { body: string; expiresAt: number };
-          if (draft.expiresAt > Date.now()) restored = draft.body;
-          else window.localStorage.removeItem(key);
+          const draft = JSON.parse(raw) as {
+            body?: string;
+            files?: Record<string, string>;
+            expiresAt: number;
+          };
+          if (draft.expiresAt > Date.now()) {
+            restored = starterFiles.map((file) => ({
+              ...file,
+              content: file.editable
+                ? (draft.files?.[file.path] ??
+                  (file.path === "src/main.rs" ? draft.body : undefined) ??
+                  file.content)
+                : file.content,
+            }));
+          } else window.localStorage.removeItem(key);
         } catch {
           window.localStorage.removeItem(key);
         }
       }
-      setSource(restored);
+      setWorkspaceFiles(restored);
+      setActiveFilePath(restored.find((file) => file.editable)?.path ?? restored[0]?.path ?? "");
       setSourceVersion(1);
     }
-  }, [exercise]);
+  }, [exercise, starterFiles]);
   useEffect(() => {
-    if (!exercise || !source) return;
+    if (!exercise || workspaceFiles.length === 0) return;
     window.localStorage.setItem(
       `rust-tutor:workspace-draft:v1:${exercise.id}`,
-      JSON.stringify({ body: source, expiresAt: Date.now() + DRAFT_TTL }),
+      JSON.stringify({
+        files: editableWorkspacePayload(workspaceFiles),
+        expiresAt: Date.now() + DRAFT_TTL,
+      }),
     );
-  }, [exercise, source]);
+  }, [exercise, workspaceFiles]);
+  const activeFile =
+    workspaceFiles.find((file) => file.path === activeFilePath) ?? workspaceFiles[0];
+  const source = activeFile?.content ?? "";
+  function updateActiveFile(content: string) {
+    setWorkspaceFiles((current) =>
+      current.map((file) =>
+        file.path === activeFile?.path && file.editable ? { ...file, content } : file,
+      ),
+    );
+    setSourceVersion((version) => version + 1);
+  }
   const evaluation = useMutation({
     mutationFn: (
       action: "check" | "test" | "clippy" | "format_check" | "format_preview" | "run",
     ) => {
-      const contentHash = bootstrap.data?.content.checksum;
+      const contentHash = v2Record
+        ? curriculumItem.data?.releaseChecksum
+        : bootstrap.data?.content.checksum;
       if (!contentHash) throw new Error("The reviewed content checksum is not ready.");
       const runId = `RUN-${crypto.randomUUID()}`;
       setActiveRunId(runId);
@@ -931,8 +1187,8 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
           runId,
           exerciseId: exercise?.id ?? exerciseId,
           action,
-          source,
-          files: v2StarterFile ? { [v2StarterFile.path]: source } : undefined,
+          source: v2Record ? undefined : source,
+          files: v2Record ? editableWorkspacePayload(workspaceFiles) : undefined,
           contentHash,
           case:
             action === "run" && (customArgs || customInput || customExpected)
@@ -961,11 +1217,12 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
   const outcome = content.data?.outcomes.find((entry) =>
     exercise?.primaryOutcomeIds.includes(entry.id),
   );
+  const canonicalConceptId = resolveAttemptConceptId(v2Record, outcome?.conceptId);
   const errorCatalog = useQuery({ queryKey: ["errors"], queryFn: getErrors });
   const conceptNotes = useQuery({
-    queryKey: ["journal", outcome?.conceptId],
-    queryFn: () => getJournal({ conceptId: outcome?.conceptId }),
-    enabled: Boolean(outcome?.conceptId),
+    queryKey: ["journal", canonicalConceptId],
+    queryFn: () => getJournal({ conceptId: canonicalConceptId }),
+    enabled: Boolean(canonicalConceptId),
   });
   const queryClient = useQueryClient();
   const reveal = useMutation({
@@ -975,22 +1232,33 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
   // Only a persisted hidden-test run can become scored evidence; the server
   // re-verifies the run ID, action, and exercise on its side.
   const lastTestRun = evaluation.data?.replay.action === "test" ? evaluation.data : undefined;
-  const recording = useMutation({
+  const recording = useMutation<RecordingResult, Error, void>({
     mutationFn: () => {
-      if (!lastTestRun) {
-        throw new Error("Submit the hidden tests first; check/run output is not scored evidence.");
+      if (reviewedAcceptance) {
+        if (!lastTestRun) throw new Error("Run the reviewed tests before accepting this exercise.");
+        return acceptPracticeItem(exerciseId, {
+          runId: lastTestRun.runId,
+          plan,
+          confidence: confidence ?? 0,
+          support,
+          reflection,
+          hintLevel,
+          accessibilityBypass,
+        });
       }
-      return recordAttempt({
-        exerciseId: exercise?.id ?? exerciseId,
-        conceptId: outcome?.conceptId ?? "CON-BORROW-001",
-        plan,
-        confidence: confidence ?? 0,
-        support,
-        reflection,
-        evaluatorRunId: lastTestRun.runId,
-        hintLevel,
-        accessibilityBypass,
-      });
+      return recordAttempt(
+        buildAttemptPayload({
+          exerciseId: exercise?.id ?? exerciseId,
+          conceptId: canonicalConceptId,
+          plan,
+          confidence: confidence ?? 0,
+          support,
+          reflection,
+          evaluatorRunId: lastTestRun?.runId,
+          hintLevel,
+          accessibilityBypass,
+        }),
+      );
     },
     onSuccess: () => {
       for (const key of [
@@ -1006,11 +1274,15 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
   });
   useEffect(() => {
     if (recording.data && exercise) {
-      window.localStorage.setItem(`rust-tutor:last-submission:v1:${exercise.id}`, source);
+      window.localStorage.setItem(
+        `rust-tutor:last-submission:v1:${exercise.id}`,
+        JSON.stringify(editableWorkspacePayload(workspaceFiles)),
+      );
     }
-  }, [exercise, recording.data, source]);
+  }, [exercise, recording.data, workspaceFiles]);
 
   const generatedManifest =
+    workspaceFiles.find((file) => file.path === "Cargo.toml")?.content ??
     v2Record?.starter?.manifest ??
     '[package]\nname = "learner_exercise"\nversion = "0.0.0"\nedition = "2024"\n\n[dependencies]\n';
   function restoreLastSubmission() {
@@ -1020,7 +1292,21 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
       setWorkspaceNotice("No prior submitted source is stored for this exercise.");
       return;
     }
-    setSource(prior);
+    try {
+      const restored = JSON.parse(prior) as Record<string, string>;
+      setWorkspaceFiles((current) =>
+        current.map((file) => {
+          const content = restored[file.path];
+          return file.editable && typeof content === "string" ? { ...file, content } : file;
+        }),
+      );
+    } catch {
+      setWorkspaceFiles((current) =>
+        current.map((file) =>
+          file.editable && file.path === "src/main.rs" ? { ...file, content: prior } : file,
+        ),
+      );
+    }
     setSourceVersion((value) => value + 1);
     setWorkspaceNotice("Prior submission copied into a new disposable draft.");
   }
@@ -1028,7 +1314,7 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
     const body = JSON.stringify(
       {
         exerciseId: exercise?.id ?? exerciseId,
-        files: { "src/main.rs": source, "Cargo.toml": generatedManifest },
+        files: Object.fromEntries(workspaceFiles.map((file) => [file.path, file.content])),
         replay: evaluation.data?.replay ?? null,
       },
       null,
@@ -1090,7 +1376,7 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
       </>
     );
   }
-  const editorFile = v2StarterFile?.path ?? "src/main.rs";
+  const editorFile = activeFile?.path ?? v2StarterFile?.path ?? "src/main.rs";
   const formattedSource = evaluation.data?.formattedFiles[editorFile];
   const lastEvaluation = evaluation.data;
   const compileState = !lastEvaluation
@@ -1137,6 +1423,23 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
           </nav>
         )}
       </header>
+
+      {v2Record?.sourceDocument && (
+        <section className="practice-source-document" aria-label="Mainmatter source lesson">
+          <header>
+            <p className="eyebrow">Mainmatter source lesson · {v2Record.sourceDocument.license}</p>
+            <p>
+              {v2Record.sourceDocument.attribution} · pinned at{" "}
+              <a href={v2Record.sourceDocument.canonicalUrl}>source commit</a>
+            </p>
+          </header>
+          <div className="book-source-body">
+            <SourceDocumentBlocks
+              blocks={v2Record.sourceDocument.blocks as readonly SourceNode[]}
+            />
+          </div>
+        </section>
+      )}
 
       <div className="practice-lab__split">
         <aside className="practice-brief" aria-label="Exercise brief">
@@ -1230,7 +1533,7 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
 
           <details className="practice-brief__plan">
             <summary>
-              Write a plan <span>optional</span>
+              Write a plan <span>{reviewedAcceptance ? "required to accept" : "optional"}</span>
             </summary>
             <label htmlFor="plan">One or two sentences</label>
             <textarea
@@ -1289,11 +1592,7 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
             {reveal.data && (
               <div className="solution-reveal">
                 <h3>Assisted explanation</h3>
-                <p>
-                  {typeof reveal.data.explanation === "string"
-                    ? reveal.data.explanation
-                    : JSON.stringify(reveal.data.explanation)}
-                </p>
+                <PracticeExplanation explanation={reveal.data.explanation} />
                 {reveal.data.referenceSolution.files.map((file) => (
                   <details key={file.path}>
                     <summary>{file.path}</summary>
@@ -1335,30 +1634,57 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
             </div>
           </header>
 
-          <Suspense
-            fallback={
-              <p className="practice-console__loading" role="status">
-                Loading code editor…
-              </p>
-            }
-          >
-            <MonacoSourceEditor
-              exerciseId={exercise.id}
-              filePath={editorFile}
-              source={source}
-              sourceVersion={sourceVersion}
-              autocompleteEnabled={bootstrap.data?.toolchain.rust_analyzer ?? false}
-              diagnostics={evaluation.data?.diagnostics ?? []}
-              onChange={(value) => {
-                setSource(value);
-                setSourceVersion((version) => version + 1);
-              }}
+          {workspaceFiles.length > 1 && (
+            <WorkspaceFileButtons
+              files={workspaceFiles}
+              activePath={editorFile}
+              onSelect={setActiveFilePath}
             />
-          </Suspense>
-          <p className="practice-console__keys">
-            <kbd>Tab</kbd> indent · <kbd>Shift</kbd>+<kbd>Tab</kbd> outdent · <kbd>Ctrl</kbd>+
-            <kbd>Space</kbd> suggestions
-          </p>
+          )}
+
+          {activeFile?.editable ? (
+            activeFile.path.endsWith(".rs") ? (
+              <>
+                <Suspense
+                  fallback={
+                    <p className="practice-console__loading" role="status">
+                      Loading code editor…
+                    </p>
+                  }
+                >
+                  <MonacoSourceEditor
+                    exerciseId={exercise.id}
+                    filePath={editorFile}
+                    source={source}
+                    sourceVersion={sourceVersion}
+                    autocompleteEnabled={bootstrap.data?.toolchain.rust_analyzer ?? false}
+                    diagnostics={evaluation.data?.diagnostics ?? []}
+                    onChange={updateActiveFile}
+                  />
+                </Suspense>
+                <p className="practice-console__keys">
+                  <kbd>Tab</kbd> indent · <kbd>Shift</kbd>+<kbd>Tab</kbd> outdent · <kbd>Ctrl</kbd>+
+                  <kbd>Space</kbd> suggestions
+                </p>
+              </>
+            ) : (
+              <textarea
+                className="practice-manifest-editor"
+                aria-label={`Edit ${activeFile.path}`}
+                spellCheck={false}
+                value={source}
+                onChange={(event) => updateActiveFile(event.target.value)}
+              />
+            )
+          ) : (
+            // A pre cannot carry an accessible name on its own, so the labelled
+            // region around it is what names the read-only file.
+            <section aria-label={`${editorFile}, read only`}>
+              <pre className="practice-readonly-file">
+                <code>{source}</code>
+              </pre>
+            </section>
+          )}
 
           <section className="practice-output" aria-live="polite" aria-label="Compiler output">
             <header>
@@ -1488,7 +1814,10 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
               <button
                 type="button"
                 onClick={() => {
-                  setSource(exercise.starter);
+                  setWorkspaceFiles(starterFiles);
+                  setActiveFilePath(
+                    starterFiles.find((file) => file.editable)?.path ?? starterFiles[0]?.path ?? "",
+                  );
                   setSourceVersion((value) => value + 1);
                   setResetPreview(false);
                 }}
@@ -1509,8 +1838,7 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
               <button
                 type="button"
                 onClick={() => {
-                  setSource(formattedSource);
-                  setSourceVersion((value) => value + 1);
+                  updateActiveFile(formattedSource);
                 }}
               >
                 Apply formatting
@@ -1555,20 +1883,53 @@ function PracticeWorkbench({ exerciseId }: { exerciseId: string }) {
             {!lastTestRun && (
               <p role="status">Run tests to make this attempt eligible for scored evidence.</p>
             )}
+            {!reviewedAcceptance && !canonicalConceptId && (
+              <p role="alert">
+                A reviewed concept mapping is required before evidence can be saved.
+              </p>
+            )}
             <button
               className="button"
               type="button"
-              disabled={!reflection || !lastTestRun || recording.isPending}
+              disabled={
+                (reviewedAcceptance
+                  ? !canAcceptPractice({
+                      plan,
+                      reflection,
+                      confidence,
+                      evaluatorRunId: lastTestRun?.runId,
+                      accepted: lastTestRun?.status === "ACCEPTED",
+                    })
+                  : !canRecordAttempt({
+                      reflection,
+                      evaluatorRunId: lastTestRun?.runId,
+                      conceptId: canonicalConceptId,
+                    })) || recording.isPending
+              }
               onClick={() => recording.mutate()}
             >
-              Save learning evidence
+              {reviewedAcceptance ? "Accept exercise and save evidence" : "Save learning evidence"}
             </button>
             {recording.isError && <p role="alert">{recording.error.message}</p>}
             {recording.data && (
-              <p role="status">
-                <strong>{statusLabel(recording.data.outcomeState)}</strong> ·{" "}
-                {recording.data.whyNext}
-              </p>
+              <div role="status">
+                {"outcomeState" in recording.data ? (
+                  <p>
+                    <strong>{statusLabel(recording.data.outcomeState)}</strong> ·{" "}
+                    {recording.data.whyNext}
+                  </p>
+                ) : (
+                  <p>
+                    <strong>Accepted.</strong> Attempt, mapped evidence, and completion were saved
+                    together.{" "}
+                    {recording.data.nextRecommendation ? (
+                      <a href={recording.data.nextRecommendation.route.href}>Next up →</a>
+                    ) : (
+                      "You completed the Mainmatter track."
+                    )}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </section>

@@ -17,6 +17,7 @@ const primaryRoutes = [
 const footerRoutes = [
   ["/graph", "Knowledge graph"],
   ["/errors", "Error catalog"],
+  ["/library", "Reference library"],
   ["/diagnostic", "Diagnostic"],
   ["/exam", "Final exam"],
   ["/labs", "Systems lab"],

@@ -19,6 +19,7 @@ import { Route as ExamRouteImport } from './routes/exam'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as LabsRouteImport } from './routes/labs'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ReviewRouteImport } from './routes/review'
@@ -80,6 +81,11 @@ const JournalRoute = JournalRouteImport.update({
 const LabsRoute = LabsRouteImport.update({
   id: '/labs',
   path: '/labs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeRoute = PracticeRouteImport.update({
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/graph': typeof GraphRoute
   '/journal': typeof JournalRoute
   '/labs': typeof LabsRoute
+  '/library': typeof LibraryRoute
   '/practice': typeof PracticeRoute
   '/projects': typeof ProjectsRoute
   '/review': typeof ReviewRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/graph': typeof GraphRoute
   '/journal': typeof JournalRoute
   '/labs': typeof LabsRoute
+  '/library': typeof LibraryRoute
   '/practice': typeof PracticeRoute
   '/projects': typeof ProjectsRoute
   '/review': typeof ReviewRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/graph': typeof GraphRoute
   '/journal': typeof JournalRoute
   '/labs': typeof LabsRoute
+  '/library': typeof LibraryRoute
   '/practice': typeof PracticeRoute
   '/projects': typeof ProjectsRoute
   '/review': typeof ReviewRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/graph'
     | '/journal'
     | '/labs'
+    | '/library'
     | '/practice'
     | '/projects'
     | '/review'
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/graph'
     | '/journal'
     | '/labs'
+    | '/library'
     | '/practice'
     | '/projects'
     | '/review'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/graph'
     | '/journal'
     | '/labs'
+    | '/library'
     | '/practice'
     | '/projects'
     | '/review'
@@ -303,6 +315,7 @@ export interface RootRouteChildren {
   GraphRoute: typeof GraphRoute
   JournalRoute: typeof JournalRoute
   LabsRoute: typeof LabsRoute
+  LibraryRoute: typeof LibraryRoute
   PracticeRoute: typeof PracticeRoute
   ProjectsRoute: typeof ProjectsRoute
   ReviewRoute: typeof ReviewRoute
@@ -387,6 +400,13 @@ declare module '@tanstack/react-router' {
       path: '/labs'
       fullPath: '/labs'
       preLoaderRoute: typeof LabsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice': {
@@ -487,6 +507,7 @@ const rootRouteChildren: RootRouteChildren = {
   GraphRoute: GraphRoute,
   JournalRoute: JournalRoute,
   LabsRoute: LabsRoute,
+  LibraryRoute: LibraryRoute,
   PracticeRoute: PracticeRoute,
   ProjectsRoute: ProjectsRoute,
   ReviewRoute: ReviewRoute,

@@ -18,6 +18,7 @@ use axum::{
     },
     routing::{get, post},
 };
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::process::Command;
@@ -412,6 +413,7 @@ pub fn api_contract_fixture() -> serde_json::Value {
                 content_hash: "377abae1d4523366424a66c736f0a8a20c279e7f556bd95e3c241a11b24237d7".to_owned(),
                 toolchain: std::collections::HashMap::new(),
                 network: "denied-by-macos-sandbox-profile".to_owned(),
+                contract_checksum: None,
             },
         }
     })
@@ -460,7 +462,14 @@ async fn about(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
         "rustToolchain":state.toolchain.versions.get("rustc").cloned().unwrap_or_else(||"unavailable".into()),
         "masteryModel":"mastery-v1","placementModel":state.diagnostic.model_version,
         "examForm":state.exam.form_id,"examVersion":state.exam.form_version,
-        "scheduler":"fixed-intervals-v1","license":"MIT","offlineRuntime":true
+        "scheduler":"fixed-intervals-v1","license":"MIT","offlineRuntime":true,
+        // Rust Tutor's own code is MIT, but the bundled curriculum includes
+        // CC BY-NC 4.0 material, so the bundle as shipped is noncommercial.
+        "contentLicensing":{
+            "bundleUse":"noncommercial",
+            "notice":"Rust Tutor's own code and curriculum are MIT licensed. This build also bundles The Rust Programming Language (MIT OR Apache-2.0) and Mainmatter's 100 Exercises To Learn Rust (CC BY-NC 4.0). Because of the CC BY-NC 4.0 material, the bundled curriculum may not be used commercially.",
+            "sources":state.curriculum_v2.attribution()
+        }
     }))
 }
 
@@ -558,6 +567,7 @@ async fn practice_detail(
     match state.curriculum_v2.exercise(&id) {
         Some(item) => Json(serde_json::json!({
             "releaseId": state.curriculum_v2.release_id,
+            "releaseChecksum": state.curriculum_v2.checksum,
             "item": item
         }))
         .into_response(),
@@ -599,6 +609,427 @@ async fn practice_reveal(
         );
     }
     Json(reveal).into_response()
+}
+
+/// Rust Tutor runs as a single local learner; every progress row uses this ID.
+const LOCAL_LEARNER_ID: &str = "LEARNER-LOCAL-001";
+
+/// The two linked tracks plus the practice arcs, with the learner's progress
+/// and the next thing to open.
+///
+/// The Book track and the Mainmatter arcs are released content the service
+/// owns, so their ordering and page summaries are returned in full. The guided
+/// course is authored in the web app, so only its stored chapter progress is
+/// returned here and the client pairs it with the chapter list it already has.
+async fn learn_tracks(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
+    let database = match authenticated_database(&state, &headers) {
+        Ok(database) => database,
+        Err(response) => return response,
+    };
+    let (checks, completions, guided) = match tokio::try_join!(
+        database.lesson_check_totals(LOCAL_LEARNER_ID),
+        database.workbench_progress(LOCAL_LEARNER_ID),
+        database.course_progress(LOCAL_LEARNER_ID),
+    ) {
+        Ok(values) => values,
+        Err(error) => {
+            return service_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "learn_tracks_failed",
+                &error.to_string(),
+                true,
+            );
+        }
+    };
+    let committed: std::collections::HashMap<&str, &serde_json::Value> = checks
+        .iter()
+        .filter_map(|row| row["lessonId"].as_str().map(|id| (id, row)))
+        .collect();
+    let completed: std::collections::HashSet<&str> = completions
+        .iter()
+        .filter_map(|row| row["itemId"].as_str())
+        .collect();
+
+    let mut tracks = state.curriculum_v2.tracks();
+    // Reading a page is not mastery: a page counts as "read" only once its
+    // recall checks are committed, and never merely because it was opened.
+    let mut next_page: Option<serde_json::Value> = None;
+    let mut pages_read = 0_usize;
+    let mut pages_total = 0_usize;
+    for module in tracks["book"]["modules"]
+        .as_array_mut()
+        .into_iter()
+        .flatten()
+    {
+        for page in module["pages"].as_array_mut().into_iter().flatten() {
+            pages_total += 1;
+            let id = page["id"].as_str().unwrap_or_default().to_owned();
+            let required = page["checkIds"].as_array().map_or(0, Vec::len);
+            let done = committed
+                .get(id.as_str())
+                .and_then(|row| row["committed"].as_u64())
+                .unwrap_or(0);
+            let read = required > 0 && done >= required as u64;
+            if read {
+                pages_read += 1;
+            } else if next_page.is_none() {
+                next_page =
+                    Some(serde_json::json!({ "kind": "lesson", "id": id, "title": page["title"] }));
+            }
+            page["checksCommitted"] = serde_json::json!(done);
+            page["read"] = serde_json::json!(read);
+        }
+    }
+
+    let mut exercises_done = 0_usize;
+    let mut exercises_total = 0_usize;
+    let mut next_exercise: Option<serde_json::Value> = None;
+    for arc in tracks["practice"]["arcs"]
+        .as_array_mut()
+        .into_iter()
+        .flatten()
+    {
+        let mut arc_done = 0_usize;
+        for exercise in arc["exercises"].as_array_mut().into_iter().flatten() {
+            exercises_total += 1;
+            let id = exercise["id"].as_str().unwrap_or_default().to_owned();
+            let done = completed.contains(id.as_str());
+            if done {
+                arc_done += 1;
+                exercises_done += 1;
+            } else if next_exercise.is_none() {
+                next_exercise = Some(
+                    serde_json::json!({ "kind": "exercise", "id": id, "title": exercise["title"] }),
+                );
+            }
+            exercise["completed"] = serde_json::json!(done);
+        }
+        arc["completed"] = serde_json::json!(arc_done);
+    }
+
+    tracks["book"]["progress"] =
+        serde_json::json!({ "pagesRead": pages_read, "pages": pages_total });
+    tracks["practice"]["progress"] =
+        serde_json::json!({ "completed": exercises_done, "total": exercises_total });
+    tracks["guided"] = serde_json::json!({
+        "source": "apps/web/src/features/learning/course.ts",
+        "chapters": guided,
+    });
+    tracks["nextRecommendation"] = serde_json::json!({
+        "book": next_page,
+        "practice": next_exercise,
+    });
+    tracks["releaseId"] = serde_json::json!(state.curriculum_v2.release_id);
+    Json(tracks).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct LessonCheckRequest {
+    chosen_index: usize,
+}
+
+/// Grades one Book recall check on the server and commits the answer. The
+/// answer key and its explanation never leave the service until the learner has
+/// committed, and the first commitment is final, so the reveal cannot be used
+/// to fix the answer.
+async fn lesson_check_commit(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    AxumPath((lesson_id, check_id)): AxumPath<(String, String)>,
+    Json(request): Json<LessonCheckRequest>,
+) -> Response {
+    let database = match authenticated_database(&state, &headers) {
+        Ok(database) => database,
+        Err(response) => return response,
+    };
+    let Some(canonical_lesson) = state.curriculum_v2.canonical_lesson_id(&lesson_id) else {
+        return service_error(
+            StatusCode::NOT_FOUND,
+            "lesson_not_found",
+            "The lesson is not released.",
+            false,
+        );
+    };
+    let Some((answer_index, explanation, options)) = state
+        .curriculum_v2
+        .lesson_check_answer(&canonical_lesson, &check_id)
+    else {
+        return service_error(
+            StatusCode::NOT_FOUND,
+            "lesson_check_not_found",
+            "That recall check is not part of this lesson.",
+            false,
+        );
+    };
+    if request.chosen_index >= options {
+        return service_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_lesson_check_answer",
+            "The chosen option is outside this check's options.",
+            false,
+        );
+    }
+    match database
+        .commit_lesson_check(
+            LOCAL_LEARNER_ID,
+            &canonical_lesson,
+            &check_id,
+            i64::try_from(request.chosen_index).unwrap_or(-1),
+            request.chosen_index == answer_index,
+            &explanation,
+            &unix_timestamp(),
+        )
+        .await
+    {
+        Ok(commitment) => Json(commitment).into_response(),
+        Err(error) => service_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "lesson_check_commit_failed",
+            &error.to_string(),
+            false,
+        ),
+    }
+}
+
+/// The learner's already-committed answers for a lesson, so a reload restores
+/// the post-commitment view instead of offering a fresh attempt.
+async fn lesson_check_progress(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    AxumPath(lesson_id): AxumPath<String>,
+) -> Response {
+    let database = match authenticated_database(&state, &headers) {
+        Ok(database) => database,
+        Err(response) => return response,
+    };
+    let Some(canonical_lesson) = state.curriculum_v2.canonical_lesson_id(&lesson_id) else {
+        return service_error(
+            StatusCode::NOT_FOUND,
+            "lesson_not_found",
+            "The lesson is not released.",
+            false,
+        );
+    };
+    match database
+        .lesson_check_commitments(LOCAL_LEARNER_ID, &canonical_lesson)
+        .await
+    {
+        Ok(commitments) => Json(serde_json::json!({
+            "lessonId": canonical_lesson,
+            "commitments": commitments,
+        }))
+        .into_response(),
+        Err(error) => service_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "lesson_check_progress_failed",
+            &error.to_string(),
+            false,
+        ),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PracticeAcceptRequest {
+    run_id: String,
+    plan: String,
+    confidence: u8,
+    support: String,
+    reflection: String,
+    #[serde(default)]
+    hint_level: u8,
+    #[serde(default)]
+    accessibility_bypass: bool,
+}
+
+async fn practice_accept(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+    Json(request): Json<PracticeAcceptRequest>,
+) -> Response {
+    let database = match authenticated_database(&state, &headers) {
+        Ok(database) => database,
+        Err(response) => return response,
+    };
+    let Some(evidence_contract) = state.curriculum_v2.practice_evidence_contract(&id) else {
+        return service_error(
+            StatusCode::NOT_FOUND,
+            "practice_acceptance_not_found",
+            "This practice item has no reviewed live acceptance contract.",
+            false,
+        );
+    };
+    let Some(evaluator_contract) = state.curriculum_v2.evaluation_contract(&id) else {
+        return service_error(
+            StatusCode::NOT_FOUND,
+            "practice_acceptance_not_found",
+            "This practice item has no reviewed evaluator suite.",
+            false,
+        );
+    };
+    let Some(suite_checksum) = evaluator_contract.suite_sha256.as_deref() else {
+        return service_error(
+            StatusCode::NOT_FOUND,
+            "practice_acceptance_not_found",
+            "This practice item has no versioned evaluator suite.",
+            false,
+        );
+    };
+    let next_exercise_id = evidence_contract.next_exercise_id.as_deref();
+    if request.run_id.trim().is_empty()
+        || request.plan.trim().is_empty()
+        || request.plan.len() > 10_000
+        || request.reflection.trim().is_empty()
+        || request.reflection.len() > 10_000
+        || !(1..=5).contains(&request.confidence)
+        || ![
+            "none",
+            "compiler",
+            "official_docs",
+            "hint",
+            "full_reveal",
+            "external_help",
+        ]
+        .contains(&request.support.as_str())
+        || (request.support == "hint" && !(1..=7).contains(&request.hint_level))
+    {
+        return service_error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_practice_acceptance",
+            "Run, plan, confidence, support disclosure, and reflection are required.",
+            false,
+        );
+    }
+    let run = match verified_completed_run(database, &request.run_id, &id, "test").await {
+        Ok(run) => run,
+        Err(response) => return response,
+    };
+    let result = &run["result"];
+    if result["status"] != "ACCEPTED"
+        || result["replay"]["contentHash"] != state.curriculum_v2.checksum
+        || result["replay"]["contractChecksum"] != suite_checksum
+    {
+        return service_error(
+            StatusCode::CONFLICT,
+            "practice_evidence_rejected",
+            "Acceptance requires the current release's exact successful server-owned suite.",
+            false,
+        );
+    }
+    let support = match request.support.as_str() {
+        "none" => serde_json::json!("none"),
+        "compiler" => serde_json::json!("compiler"),
+        "official_docs" => serde_json::json!("official_docs"),
+        "hint" => serde_json::json!({"hint":{"level":request.hint_level}}),
+        "full_reveal" => serde_json::json!("solution_viewed"),
+        _ => serde_json::json!("external_help"),
+    };
+    let diagnostic_codes: Vec<String> = result["diagnostics"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|diagnostic| diagnostic["code"].as_str().map(str::to_owned))
+        .collect();
+    let ids = EventIds::new();
+    let mut events = vec![
+        ids.event(0, "plan_committed", serde_json::json!({"plan":request.plan})),
+        ids.event(
+            1,
+            "confidence_committed",
+            serde_json::json!({"phase":"before","value":request.confidence}),
+        ),
+        ids.event(
+            2,
+            "compiler_observed",
+            serde_json::json!({"status":"ACCEPTED","diagnosticCodes":diagnostic_codes}),
+        ),
+        ids.event(
+            3,
+            "support_used",
+            serde_json::json!({"support":support.clone(),"hintLevel":request.hint_level,"accessibilityBypass":request.accessibility_bypass}),
+        ),
+        ids.event(
+            4,
+            "reflection_committed",
+            serde_json::json!({"reflection":request.reflection}),
+        ),
+    ];
+    for (index, concept_id) in evidence_contract.concept_ids.iter().enumerate() {
+        events.push(ids.event(
+            i64::try_from(index + 5).expect("pilot concept index fits i64"),
+            "assessment_scored",
+            serde_json::json!({
+                "conceptId":concept_id,
+                "outcomeIds":evidence_contract.outcome_ids,
+                "score":1.0,
+                "itemId":id,
+                "variantGroup":evidence_contract.variant_group,
+                "kind":"implement",
+                "support":support,
+                "day":current_day(),
+                "criticalMisconception":false,
+                "primaryOutcome":index == 0
+            }),
+        ));
+    }
+    let session = db::NewSession {
+        learner_id: "LEARNER-LOCAL-001".to_owned(),
+        session_id: ids.session.clone(),
+        attempt_id: ids.attempt.clone(),
+        item_id: id.clone(),
+        item_version: 1,
+        started_at: ids.occurred_at.clone(),
+        run_id: ids.run.clone(),
+        request_id: ids.request.clone(),
+    };
+    let evaluator_log = db::NewEvaluatorLog {
+        evaluator_run_id: request.run_id,
+        attempt_id: ids.attempt.clone(),
+        event_id: Some(events[2].event_id.clone()),
+        run_id: ids.run.clone(),
+        request_id: ids.request.clone(),
+        status: "ACCEPTED".to_owned(),
+        toolchain_json: result["replay"]
+            .get("toolchain")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}))
+            .to_string(),
+        detail_json: result["replay"].to_string(),
+        created_at: ids.occurred_at.clone(),
+    };
+    match database
+        .accept_practice_bundle(
+            &session,
+            &events,
+            &evaluator_log,
+            &state.curriculum_v2.checksum,
+            suite_checksum,
+            next_exercise_id,
+            "mastery-v1",
+        )
+        .await
+    {
+        Ok(mut acceptance) => {
+            acceptance["conceptIds"] = serde_json::json!(evidence_contract.concept_ids);
+            acceptance["outcomeIds"] = serde_json::json!(evidence_contract.outcome_ids);
+            acceptance["nextRecommendation"] =
+                next_exercise_id.map_or(serde_json::Value::Null, |id| {
+                    serde_json::json!({
+                        "id":id,
+                        "route":{"kind":"exercise","href":format!("/practice/rust/{id}")}
+                    })
+                });
+            Json(acceptance).into_response()
+        }
+        Err(error) => service_error(
+            StatusCode::CONFLICT,
+            "practice_evidence_rejected",
+            &error.to_string(),
+            false,
+        ),
+    }
 }
 
 async fn project_stage_detail(
@@ -1872,6 +2303,14 @@ async fn graph_neighborhood(
         Ok(result) => Json(result).into_response(),
         Err(error) => service_error(StatusCode::NOT_FOUND, "graph_node_not_found", &error, false),
     }
+}
+
+/// Whole-graph projection for the interactive canvas map.
+///
+/// Cached hard on the client: the projection only changes when the content
+/// release changes, and the checksum in the payload lets the UI detect that.
+async fn graph_map(State(state): State<Arc<AppState>>) -> Response {
+    Json(state.graph.map_projection()).into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -3900,10 +4339,11 @@ fn request_origin_allowed(headers: &HeaderMap, expected: &str) -> bool {
 }
 
 async fn request_guard(
-    State(state): State<Arc<AppState>>,
+    State(guard): State<RequestGuardState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
+    let state = &guard.app;
     let expected_host = state
         .allowed_origin
         .strip_prefix("http://")
@@ -3969,9 +4409,7 @@ async fn request_guard(
     let headers = response.headers_mut();
     headers.insert(
         header::CONTENT_SECURITY_POLICY,
-        header::HeaderValue::from_static(
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-        ),
+        guard.content_security_policy,
     );
     headers.insert(
         header::X_CONTENT_TYPE_OPTIONS,
@@ -3984,19 +4422,71 @@ async fn request_guard(
     response
 }
 
+#[derive(Clone)]
+struct RequestGuardState {
+    app: Arc<AppState>,
+    content_security_policy: header::HeaderValue,
+}
+
+fn content_security_policy(shell: &str) -> header::HeaderValue {
+    let mut script_sources = vec!["'self'".to_owned()];
+    let mut remainder = shell;
+    while let Some(tag_start) = remainder.find("<script") {
+        remainder = &remainder[tag_start + "<script".len()..];
+        let Some(tag_end) = remainder.find('>') else {
+            break;
+        };
+        let attributes = &remainder[..tag_end];
+        remainder = &remainder[tag_end + 1..];
+        let Some(body_end) = remainder.find("</script>") else {
+            break;
+        };
+        let body = &remainder[..body_end];
+        if !attributes.contains("src=") && !body.is_empty() {
+            // HTML tokenization replaces NUL with U+FFFD before the browser
+            // evaluates a CSP hash. TanStack's serialized route IDs contain
+            // NUL separators, so hash the browser-visible script text.
+            let parsed_body = body.replace('\0', "\u{fffd}");
+            script_sources.push(format!(
+                "'sha256-{}'",
+                BASE64.encode(Sha256::digest(parsed_body.as_bytes()))
+            ));
+        }
+        remainder = &remainder[body_end + "</script>".len()..];
+    }
+    let value = format!(
+        "default-src 'self'; script-src {}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+        script_sources.join(" ")
+    );
+    header::HeaderValue::from_str(&value).expect("generated CSP must be a valid header value")
+}
+
 pub fn app(state: AppState, web_dist: PathBuf) -> Router {
-    let shell = ServeFile::new(web_dist.join("_shell.html"));
+    let shell_path = web_dist.join("_shell.html");
+    let shell_source = std::fs::read_to_string(&shell_path).unwrap_or_default();
+    let shell = ServeFile::new(shell_path);
     let static_files = ServeDir::new(web_dist).fallback(shell);
     let shared_state = Arc::new(state);
+    let guard_state = RequestGuardState {
+        app: shared_state.clone(),
+        content_security_policy: content_security_policy(&shell_source),
+    };
     Router::new()
         .route("/api/v1/health", get(health))
         .route("/api/v1/bootstrap", get(bootstrap))
         .route("/api/v1/about", get(about))
         .route("/api/v1/diagnostics/preview", get(diagnostics_preview))
         .route("/api/v1/content/ownership", get(tutor_content))
+        .route("/api/v1/learn/tracks", get(learn_tracks))
         .route("/api/v1/lessons/{id}", get(lesson_detail))
+        .route("/api/v1/lessons/{id}/checks", get(lesson_check_progress))
+        .route(
+            "/api/v1/lessons/{id}/checks/{check_id}",
+            post(lesson_check_commit),
+        )
         .route("/api/v1/practice", get(practice_list))
         .route("/api/v1/practice/{id}", get(practice_detail))
+        .route("/api/v1/practice/{id}/accept", post(practice_accept))
         .route("/api/v1/practice/{id}/reveal", post(practice_reveal))
         .route("/api/v1/evaluate", post(evaluate))
         .route("/api/v1/evaluate/stream", post(evaluate_stream))
@@ -4024,6 +4514,7 @@ pub fn app(state: AppState, web_dist: PathBuf) -> Router {
         )
         .route("/api/v1/recommendations", get(recommendations))
         .route("/api/v1/graph", get(graph_neighborhood))
+        .route("/api/v1/graph/map", get(graph_map))
         .route("/api/v1/graph/path", get(graph_path))
         .route("/api/v1/graph/prerequisites", get(graph_prerequisites))
         .route(
@@ -4113,13 +4604,13 @@ pub fn app(state: AppState, web_dist: PathBuf) -> Router {
         .route("/api/v1/session/check", post(check_session))
         .fallback_service(static_files)
         .layer(DefaultBodyLimit::max(1_048_576))
-        .layer(from_fn_with_state(shared_state.clone(), request_guard))
+        .layer(from_fn_with_state(guard_state, request_guard))
         .with_state(shared_state)
 }
 
 #[cfg(test)]
 mod origin_tests {
-    use super::is_exact_loopback_origin;
+    use super::{content_security_policy, is_exact_loopback_origin};
 
     #[test]
     fn exact_loopback_origins_are_accepted() {
@@ -4146,5 +4637,29 @@ mod origin_tests {
         ] {
             assert!(!is_exact_loopback_origin(origin), "{origin}");
         }
+    }
+
+    #[test]
+    fn csp_authorizes_only_the_generated_inline_scripts() {
+        let shell =
+            "<script>theme()</script><script src=\"/app.js\"></script><script>hydrate(\0)</script>";
+        let header = content_security_policy(shell);
+        let policy = header.to_str().unwrap();
+
+        assert_eq!(policy.matches("'sha256-").count(), 2);
+        assert!(policy.starts_with("default-src 'self'; script-src 'self' 'sha256-"));
+        assert!(!policy.contains("script-src 'self' 'unsafe-inline'"));
+        assert_ne!(
+            policy,
+            content_security_policy(&shell.replace("hydrate", "mount"))
+                .to_str()
+                .unwrap()
+        );
+        assert_eq!(
+            policy,
+            content_security_policy(&shell.replace('\0', "\u{fffd}"))
+                .to_str()
+                .unwrap()
+        );
     }
 }

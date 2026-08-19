@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/rust-service"]
+members = ["apps/rust-service", "tools/curriculum-compiler"]
 resolver = "3"
 
 [workspace.package]

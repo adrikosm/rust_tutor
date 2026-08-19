@@ -38,6 +38,8 @@
     "all-checks": "pnpm governance:validate && pnpm content:validate && pnpm contract:generate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm ui:verify:static"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.4"
+    "@biomejs/biome": "2.5.4",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1"
   }
 }

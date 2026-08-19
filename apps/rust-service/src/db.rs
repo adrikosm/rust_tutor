@@ -30,6 +30,8 @@ const MIGRATION_10: &str = include_str!("../migrations/0010_workbench_progress.s
 const MIGRATION_11: &str = include_str!("../migrations/0011_review_ratings_reset_baseline.sql");
 const MIGRATION_12: &str = include_str!("../migrations/0012_course_progress.sql");
 const MIGRATION_13: &str = include_str!("../migrations/0013_curriculum_v2_workspace.sql");
+const MIGRATION_14: &str = include_str!("../migrations/0014_practice_acceptance.sql");
+const MIGRATION_15: &str = include_str!("../migrations/0015_optional_next_recommendation.sql");
 const RECOVERY: &str = "The learner database is unreadable. Keep the file for recovery, restore a known-good backup, or move it aside before restarting; no mutation was attempted.";
 
 #[derive(Debug)]
@@ -157,20 +159,57 @@ impl Database {
         &self,
         graph: &crate::graph::RuntimeGraph,
     ) -> Result<Value, DbError> {
-        let existing: Option<String> = sqlx::query_scalar(
-            "SELECT checksum FROM content_import_checkpoint WHERE release_id = ?",
+        let public_nodes: Vec<_> = graph
+            .nodes
+            .iter()
+            .filter(|node| crate::graph::is_public_node(node))
+            .collect();
+        let public_edges: Vec<_> = graph
+            .edges
+            .iter()
+            .filter(|edge| graph.is_public_edge(edge))
+            .collect();
+        let expected_node_count = i64::try_from(public_nodes.len()).expect("node count fits i64");
+        let expected_edge_count = i64::try_from(public_edges.len()).expect("edge count fits i64");
+        let existing: Option<(String, i64, i64)> = sqlx::query_as(
+            "SELECT checksum,node_count,edge_count FROM content_import_checkpoint WHERE release_id = ?",
         )
         .bind(&graph.release_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(query_error)?;
-        if existing.as_deref() == Some(graph.checksum.as_str()) {
-            return Ok(serde_json::json!({
-                "releaseId":graph.release_id,
-                "nodeCount":graph.nodes.len(),
-                "edgeCount":graph.edges.len(),
-                "changed":false
-            }));
+        if existing
+            .as_ref()
+            .is_some_and(|(checksum, node_count, edge_count)| {
+                checksum == &graph.checksum
+                    && *node_count == expected_node_count
+                    && *edge_count == expected_edge_count
+            })
+        {
+            let stored: (i64, i64, i64, i64, i64, i64) = sqlx::query_as(
+                "SELECT (SELECT COUNT(*) FROM curriculum_node WHERE release_id=?1),(SELECT COUNT(*) FROM curriculum_edge WHERE release_id=?1),(SELECT COUNT(*) FROM curriculum_search WHERE release_id=?1),(SELECT COUNT(*) FROM curriculum_node WHERE release_id=?1 AND (kind='test_group' OR node_id LIKE 'TST-%')),(SELECT COUNT(*) FROM curriculum_search WHERE release_id=?1 AND (kind='test_group' OR node_id LIKE 'TST-%')),(SELECT COUNT(*) FROM curriculum_edge e LEFT JOIN curriculum_node s ON s.release_id=e.release_id AND s.node_id=e.source_id LEFT JOIN curriculum_node t ON t.release_id=e.release_id AND t.node_id=e.target_id WHERE e.release_id=?1 AND (s.kind='test_group' OR t.kind='test_group' OR e.source_id LIKE 'TST-%' OR e.target_id LIKE 'TST-%'))",
+            )
+            .bind(&graph.release_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(query_error)?;
+            if stored
+                == (
+                    expected_node_count,
+                    expected_edge_count,
+                    expected_node_count,
+                    0,
+                    0,
+                    0,
+                )
+            {
+                return Ok(serde_json::json!({
+                    "releaseId":graph.release_id,
+                    "nodeCount":public_nodes.len(),
+                    "edgeCount":public_edges.len(),
+                    "changed":false
+                }));
+            }
         }
 
         let mut transaction = self.pool.begin().await.map_err(query_error)?;
@@ -183,10 +222,11 @@ impl Database {
         .await
         .map_err(query_error)?;
 
-        let node_ids: HashSet<_> = graph.nodes.iter().map(|node| node.id.as_str()).collect();
+        let node_ids: HashSet<_> = public_nodes.iter().map(|node| node.id.as_str()).collect();
         let edge_ids: HashSet<_> = graph
             .edges
             .iter()
+            .filter(|edge| graph.is_public_edge(edge))
             .map(|edge| edge.edge_id.as_str())
             .collect();
         let existing_edges: Vec<String> =
@@ -228,10 +268,15 @@ impl Database {
             }
         }
 
-        for node in &graph.nodes {
+        for node in &public_nodes {
             let payload =
                 serde_json::to_string(node).map_err(|error| DbError(error.to_string()))?;
-            let checksum = format!("{:x}", Sha256::digest(payload.as_bytes()));
+            // `search_text` is not serialized into the payload, so it is hashed
+            // explicitly: otherwise a changed page would keep a stale FTS row.
+            let checksum = format!(
+                "{:x}",
+                Sha256::digest(format!("{payload}\u{1f}{}", node.search_text).as_bytes())
+            );
             let prior: Option<String> = sqlx::query_scalar(
                 "SELECT checksum FROM curriculum_node WHERE release_id = ? AND node_id = ?",
             )
@@ -240,8 +285,12 @@ impl Database {
             .fetch_optional(&mut *transaction)
             .await
             .map_err(query_error)?;
+            // Public source text and tutor overlay join the ID and provenance
+            // terms, so a learner can find a page by what it actually says.
             let source_text = std::iter::once(node.id.as_str())
                 .chain(node.provenance_ids.iter().map(String::as_str))
+                .chain(std::iter::once(node.search_text.as_str()))
+                .filter(|part| !part.is_empty())
                 .collect::<Vec<_>>()
                 .join(" ");
             sqlx::query(
@@ -277,7 +326,7 @@ impl Database {
                     .map_err(query_error)?;
             }
         }
-        for edge in &graph.edges {
+        for edge in &public_edges {
             sqlx::query(
                 "INSERT INTO curriculum_edge(release_id,edge_id,source_id,target_id,kind,rationale,provenance_json) VALUES (?,?,?,?,?,?,?) ON CONFLICT(release_id,edge_id) DO UPDATE SET source_id=excluded.source_id,target_id=excluded.target_id,kind=excluded.kind,rationale=excluded.rationale,provenance_json=excluded.provenance_json",
             )
@@ -296,8 +345,8 @@ impl Database {
             "INSERT INTO content_import_checkpoint(release_id,node_count,edge_count,checksum,imported_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(release_id) DO UPDATE SET node_count=excluded.node_count,edge_count=excluded.edge_count,checksum=excluded.checksum,imported_at=excluded.imported_at",
         )
         .bind(&graph.release_id)
-        .bind(i64::try_from(graph.nodes.len()).expect("node count fits i64"))
-        .bind(i64::try_from(graph.edges.len()).expect("edge count fits i64"))
+        .bind(expected_node_count)
+        .bind(expected_edge_count)
         .bind(&graph.checksum)
         .execute(&mut *transaction)
         .await
@@ -305,8 +354,8 @@ impl Database {
         transaction.commit().await.map_err(query_error)?;
         Ok(serde_json::json!({
             "releaseId":graph.release_id,
-            "nodeCount":graph.nodes.len(),
-            "edgeCount":graph.edges.len(),
+            "nodeCount":node_ids.len(),
+            "edgeCount":edge_ids.len(),
             "changed":true
         }))
     }
@@ -1068,7 +1117,7 @@ impl Database {
                     .bind(learner_id)
                     .bind(id)
                     .bind(text(row, "itemKind")?)
-                    .bind(text(row, "unlockedItemId")?)
+                    .bind(row.get("unlockedItemId").and_then(Value::as_str))
                     .bind(text(row, "evaluatorRunId")?)
                     .bind(text(row, "workspaceChecksum")?)
                     .bind(text(row, "acceptedAt")?)
@@ -1325,8 +1374,10 @@ impl Database {
         let Some(query) = crate::graph::safe_fts_query(raw_query) else {
             return Ok(Vec::new());
         };
+        // The route target is joined from the stored node so a hit can link
+        // straight to the page, exercise, concept, error, or project it names.
         let rows = sqlx::query(
-            "SELECT node_id,kind,title,snippet(curriculum_search,4,'<mark>','</mark>',' … ',18) AS result_snippet,source_text,bm25(curriculum_search) AS rank FROM curriculum_search WHERE curriculum_search MATCH ? AND (? IS NULL OR kind = ?) ORDER BY rank,node_id LIMIT ?",
+            "SELECT s.node_id,s.kind,s.title,snippet(curriculum_search,4,'<mark>','</mark>',' … ',18) AS result_snippet,s.summary,json_extract(n.payload_json,'$.routeTarget') AS route_target,bm25(curriculum_search) AS rank FROM curriculum_search s LEFT JOIN curriculum_node n ON n.release_id=s.release_id AND n.node_id=s.node_id WHERE curriculum_search MATCH ? AND s.kind <> 'test_group' AND s.node_id NOT LIKE 'TST-%' AND (? IS NULL OR s.kind = ?) ORDER BY rank,s.node_id LIMIT ?",
         )
         .bind(query)
         .bind(kind)
@@ -1338,12 +1389,15 @@ impl Database {
         Ok(rows
             .into_iter()
             .map(|row| {
+                let node_id: String = row.get("node_id");
+                let route: Option<String> = row.get("route_target");
                 serde_json::json!({
-                    "id":row.get::<String,_>("node_id"),
+                    "id":node_id,
                     "kind":row.get::<String,_>("kind"),
                     "title":row.get::<String,_>("title"),
                     "snippet":row.get::<String,_>("result_snippet"),
-                    "source":row.get::<String,_>("source_text")
+                    "summary":row.get::<String,_>("summary"),
+                    "routeTarget":route.unwrap_or_else(|| format!("/graph?id={node_id}&depth=1"))
                 })
             })
             .collect())
@@ -2109,6 +2163,138 @@ impl Database {
         }))
     }
 
+    /// Commits a Book recall answer. Grading happens in the caller, which owns
+    /// the answer key; this records the commitment on the shared append-only
+    /// attempt log so export, import, reset, and recovery cover it for free.
+    ///
+    /// One commitment per (learner, lesson check): the first answer stands, and
+    /// a later different answer returns that first commitment instead of
+    /// overwriting it, so an answer cannot be edited after the reveal.
+    #[allow(clippy::too_many_arguments)] // Mirrors the graded commitment row at this DB boundary.
+    pub async fn commit_lesson_check(
+        &self,
+        learner_id: &str,
+        lesson_id: &str,
+        check_id: &str,
+        chosen_index: i64,
+        correct: bool,
+        explanation: &str,
+        now: &str,
+    ) -> Result<Value, DbError> {
+        let key = format!("lesson-check:{learner_id}:{lesson_id}:{check_id}");
+        let mut tx = self.pool.begin().await.map_err(query_error)?;
+        sqlx::query("INSERT OR IGNORE INTO learner(learner_id,created_at) VALUES (?,?)")
+            .bind(learner_id)
+            .bind(now)
+            .execute(&mut *tx)
+            .await
+            .map_err(query_error)?;
+        let response = serde_json::json!({ "lessonId": lesson_id, "chosenIndex": chosen_index });
+        let result = serde_json::json!({ "correct": correct });
+        let support = serde_json::json!({ "explanation": explanation });
+        let inserted = sqlx::query(
+            "INSERT OR IGNORE INTO quiz_attempt_event VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        )
+        .bind(format!("LCK-{learner_id}-{lesson_id}-{check_id}"))
+        .bind(&key)
+        .bind(learner_id)
+        .bind(check_id)
+        .bind(1_i64)
+        .bind(response.to_string())
+        .bind(result.to_string())
+        .bind(if correct { 1.0_f64 } else { 0.0_f64 })
+        .bind(i64::from(correct))
+        .bind(support.to_string())
+        .bind(3_i64)
+        .bind(now)
+        .execute(&mut *tx)
+        .await
+        .map_err(query_error)?
+        .rows_affected();
+        let committed = sqlx::query(
+            "SELECT response_json,correct,support_json,created_at FROM quiz_attempt_event WHERE idempotency_key=?",
+        )
+        .bind(&key)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(query_error)?;
+        tx.commit().await.map_err(query_error)?;
+        let stored: Value = serde_json::from_str(&committed.get::<String, _>("response_json"))
+            .unwrap_or(Value::Null);
+        let stored_support: Value =
+            serde_json::from_str(&committed.get::<String, _>("support_json"))
+                .unwrap_or(Value::Null);
+        Ok(serde_json::json!({
+            "lessonId": lesson_id,
+            "checkId": check_id,
+            "chosenIndex": stored.get("chosenIndex").and_then(Value::as_i64).unwrap_or(chosen_index),
+            "correct": committed.get::<i64, _>("correct") == 1,
+            "explanation": stored_support.get("explanation").and_then(Value::as_str).unwrap_or_default(),
+            "committedAt": committed.get::<String, _>("created_at"),
+            "alreadyCommitted": inserted == 0,
+        }))
+    }
+
+    /// The learner's committed answers for one lesson, used to restore the
+    /// post-commitment view (choice plus explanation) after a reload.
+    pub async fn lesson_check_commitments(
+        &self,
+        learner_id: &str,
+        lesson_id: &str,
+    ) -> Result<Vec<Value>, DbError> {
+        // Match the stored lesson exactly through JSON rather than a LIKE
+        // prefix, so no learner or lesson ID needs LIKE-escaping.
+        let sql = format!(
+            "SELECT question_id,response_json,correct,support_json,created_at FROM quiz_attempt_event WHERE learner_id=?1 AND json_extract(response_json,'$.lessonId')=?2 AND CAST(created_at AS INTEGER) > {RESET_BASELINE_SUBQUERY} ORDER BY question_id"
+        );
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
+            .bind(learner_id)
+            .bind(lesson_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(query_error)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let response: Value =
+                    serde_json::from_str(&row.get::<String, _>("response_json")).unwrap_or(Value::Null);
+                let support: Value =
+                    serde_json::from_str(&row.get::<String, _>("support_json")).unwrap_or(Value::Null);
+                serde_json::json!({
+                    "checkId": row.get::<String, _>("question_id"),
+                    "chosenIndex": response.get("chosenIndex").and_then(Value::as_i64).unwrap_or(-1),
+                    "correct": row.get::<i64, _>("correct") == 1,
+                    "explanation": support.get("explanation").and_then(Value::as_str).unwrap_or_default(),
+                    "committedAt": row.get::<String, _>("created_at"),
+                })
+            })
+            .collect())
+    }
+
+    /// Every lesson the learner has committed at least one recall answer on,
+    /// with how many were committed and how many were correct. Backs the Book
+    /// track's per-page progress without one query per page.
+    pub async fn lesson_check_totals(&self, learner_id: &str) -> Result<Vec<Value>, DbError> {
+        let sql = format!(
+            "SELECT json_extract(response_json,'$.lessonId') AS lesson_id,COUNT(*) AS committed,SUM(correct) AS correct FROM quiz_attempt_event WHERE learner_id=?1 AND json_extract(response_json,'$.lessonId') IS NOT NULL AND CAST(created_at AS INTEGER) > {RESET_BASELINE_SUBQUERY} GROUP BY lesson_id ORDER BY lesson_id"
+        );
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
+            .bind(learner_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(query_error)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                serde_json::json!({
+                    "lessonId": row.get::<String, _>("lesson_id"),
+                    "committed": row.get::<i64, _>("committed"),
+                    "correct": row.get::<i64, _>("correct"),
+                })
+            })
+            .collect())
+    }
+
     /// Persists a finished non-streaming evaluator run so later evidence
     /// recording can verify the run server-side. Run IDs are single-use.
     #[allow(clippy::too_many_arguments)] // Mirrors the persisted run row at this DB boundary.
@@ -2358,7 +2544,7 @@ impl Database {
                 .map_err(query_error)?;
         Ok(serde_json::json!({
             "itemId":row.get::<String,_>("item_id"),"itemKind":row.get::<String,_>("item_kind"),
-            "unlockedItemId":row.get::<String,_>("unlocked_item_id"),"evaluatorRunId":row.get::<String,_>("evaluator_run_id"),
+            "unlockedItemId":row.get::<Option<String>,_>("unlocked_item_id"),"evaluatorRunId":row.get::<String,_>("evaluator_run_id"),
             "workspaceChecksum":row.get::<String,_>("workspace_checksum"),"acceptedAt":row.get::<String,_>("accepted_at")
         }))
     }
@@ -2374,7 +2560,7 @@ impl Database {
             .map_err(query_error)?;
         Ok(rows.into_iter().map(|row| serde_json::json!({
             "itemId":row.get::<String,_>("item_id"),"itemKind":row.get::<String,_>("item_kind"),
-            "unlockedItemId":row.get::<String,_>("unlocked_item_id"),"evaluatorRunId":row.get::<String,_>("evaluator_run_id"),
+            "unlockedItemId":row.get::<Option<String>,_>("unlocked_item_id"),"evaluatorRunId":row.get::<String,_>("evaluator_run_id"),
             "workspaceChecksum":row.get::<String,_>("workspace_checksum"),"acceptedAt":row.get::<String,_>("accepted_at")
         })).collect())
     }
@@ -2714,6 +2900,144 @@ impl Database {
         .await
     }
 
+    /// Accepts a reviewed practice run and its learning evidence as one unit.
+    /// The evaluator record is re-read inside the transaction; callers cannot
+    /// supply status, content, contract, or workspace claims.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn accept_practice_bundle(
+        &self,
+        session: &NewSession,
+        events: &[NewAttemptEvent],
+        evaluator_log: &NewEvaluatorLog,
+        release_checksum: &str,
+        suite_checksum: &str,
+        unlocked_item_id: Option<&str>,
+        model_version: &str,
+    ) -> Result<Value, DbError> {
+        let mut transaction = self.pool.begin().await.map_err(query_error)?;
+        let stream = sqlx::query("SELECT state,exercise_id,action,workspace_checksum,result_json FROM evaluation_stream_run WHERE learner_id=? AND run_id=?")
+            .bind(&session.learner_id)
+            .bind(&evaluator_log.evaluator_run_id)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(query_error)?
+            .ok_or_else(|| DbError("the evaluator run does not exist".into()))?;
+        let result: Value = stream
+            .get::<Option<String>, _>("result_json")
+            .and_then(|value| serde_json::from_str(&value).ok())
+            .ok_or_else(|| DbError("the evaluator run has no valid persisted result".into()))?;
+        let workspace_checksum = stream
+            .get::<Option<String>, _>("workspace_checksum")
+            .filter(|checksum| checksum.len() == 64)
+            .ok_or_else(|| DbError("the evaluator run has no valid workspace checksum".into()))?;
+        if stream.get::<String, _>("state") != "completed"
+            || stream.get::<Option<String>, _>("exercise_id").as_deref()
+                != Some(session.item_id.as_str())
+            || stream.get::<Option<String>, _>("action").as_deref() != Some("test")
+            || result["status"] != "ACCEPTED"
+            || result["replay"]["contentHash"] != release_checksum
+            || result["replay"]["contractChecksum"] != suite_checksum
+        {
+            return Err(DbError(
+                "practice acceptance requires this item's current, completed, accepted server suite"
+                    .into(),
+            ));
+        }
+
+        if let Some(row) =
+            sqlx::query("SELECT * FROM workbench_completion WHERE learner_id=? AND item_id=?")
+                .bind(&session.learner_id)
+                .bind(&session.item_id)
+                .fetch_optional(&mut *transaction)
+                .await
+                .map_err(query_error)?
+        {
+            if row.get::<String, _>("evaluator_run_id") != evaluator_log.evaluator_run_id {
+                return Err(DbError(
+                    "this practice item was already accepted by a different run".into(),
+                ));
+            }
+            return Ok(serde_json::json!({
+                "itemId":row.get::<String,_>("item_id"),
+                "itemKind":row.get::<String,_>("item_kind"),
+                "unlockedItemId":row.get::<Option<String>,_>("unlocked_item_id"),
+                "evaluatorRunId":row.get::<String,_>("evaluator_run_id"),
+                "workspaceChecksum":row.get::<String,_>("workspace_checksum"),
+                "acceptedAt":row.get::<String,_>("accepted_at"),
+                "idempotentRetry":true
+            }));
+        }
+
+        sqlx::query("INSERT OR IGNORE INTO learner (learner_id, created_at) VALUES (?, ?)")
+            .bind(&session.learner_id)
+            .bind(&session.started_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(query_error)?;
+        sqlx::query("INSERT INTO learning_session (session_id,learner_id,started_at,ended_at,run_id,request_id) VALUES (?,?,?,?,?,?)")
+            .bind(&session.session_id)
+            .bind(&session.learner_id)
+            .bind(&session.started_at)
+            .bind(&session.started_at)
+            .bind(&session.run_id)
+            .bind(&session.request_id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(query_error)?;
+        sqlx::query("INSERT INTO attempt (attempt_id,session_id,item_id,item_version,started_at,completed_at,status) VALUES (?,?,?,?,?,?,?)")
+            .bind(&session.attempt_id)
+            .bind(&session.session_id)
+            .bind(&session.item_id)
+            .bind(session.item_version)
+            .bind(&session.started_at)
+            .bind(&session.started_at)
+            .bind("evaluated")
+            .execute(&mut *transaction)
+            .await
+            .map_err(query_error)?;
+        for event in events {
+            insert_event(&mut transaction, event).await?;
+        }
+        sqlx::query("INSERT INTO evaluator_log (evaluator_run_id,attempt_id,event_id,run_id,request_id,status,toolchain_json,detail_json,created_at) VALUES (?,?,?,?,?,?,?,?,?)")
+            .bind(&evaluator_log.evaluator_run_id)
+            .bind(&evaluator_log.attempt_id)
+            .bind(&evaluator_log.event_id)
+            .bind(&evaluator_log.run_id)
+            .bind(&evaluator_log.request_id)
+            .bind("ACCEPTED")
+            .bind(&evaluator_log.toolchain_json)
+            .bind(&evaluator_log.detail_json)
+            .bind(&evaluator_log.created_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(query_error)?;
+        sqlx::query("INSERT INTO workbench_completion(learner_id,item_id,item_kind,unlocked_item_id,evaluator_run_id,workspace_checksum,accepted_at) VALUES (?,?,?,?,?,?,?)")
+            .bind(&session.learner_id)
+            .bind(&session.item_id)
+            .bind("exercise")
+            .bind(unlocked_item_id)
+            .bind(&evaluator_log.evaluator_run_id)
+            .bind(&workspace_checksum)
+            .bind(&session.started_at)
+            .execute(&mut *transaction)
+            .await
+            .map_err(query_error)?;
+        let projection =
+            rebuild_projections_in(&mut transaction, model_version, RebuildMode::Resume).await?;
+        transaction.commit().await.map_err(query_error)?;
+        Ok(serde_json::json!({
+            "itemId":session.item_id,
+            "itemKind":"exercise",
+            "unlockedItemId":unlocked_item_id,
+            "evaluatorRunId":evaluator_log.evaluator_run_id,
+            "workspaceChecksum":workspace_checksum,
+            "acceptedAt":session.started_at,
+            "attemptId":session.attempt_id,
+            "projectionChecksum":projection.checksum,
+            "idempotentRetry":false
+        }))
+    }
+
     pub async fn events_for_attempt(
         &self,
         attempt_id: &str,
@@ -2958,6 +3282,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), DbError> {
         (11_i64, MIGRATION_11),
         (12_i64, MIGRATION_12),
         (13_i64, MIGRATION_13),
+        (14_i64, MIGRATION_14),
+        (15_i64, MIGRATION_15),
     ] {
         let checksum = format!("{:x}", Sha256::digest(migration.as_bytes()));
         let recorded = sqlx::query_scalar::<_, String>(
@@ -3581,4 +3907,298 @@ async fn projection_snapshot(
         updated_at,
         rows: Value::Array(values),
     })
+}
+
+#[cfg(test)]
+mod public_graph_import_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn private_test_groups_never_enter_public_catalog_or_search_tables() {
+        let database = Database::open_memory().await.expect("memory database");
+        let graph = crate::graph::RuntimeGraph::load_embedded().expect("embedded graph");
+        let legacy_node = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "test_group")
+            .expect("fixture must contain canonical private evaluator groups");
+
+        database
+            .import_runtime_graph(&graph)
+            .await
+            .expect("graph import");
+
+        let payload = serde_json::to_string(legacy_node).expect("legacy node JSON");
+        let checksum = format!("{:x}", Sha256::digest(payload.as_bytes()));
+        sqlx::query("INSERT INTO curriculum_node(release_id,node_id,kind,title,summary,source_text,payload_json,checksum) VALUES (?,?,?,?,?,?,?,?)")
+            .bind(&graph.release_id)
+            .bind(&legacy_node.id)
+            .bind(&legacy_node.kind)
+            .bind("legacy private evaluator sentinel")
+            .bind("server-only evaluator contract")
+            .bind("legacy_private_evaluator_sentinel")
+            .bind(payload)
+            .bind(checksum)
+            .execute(&database.pool)
+            .await
+            .expect("seed legacy private node");
+        sqlx::query("INSERT INTO curriculum_edge(release_id,edge_id,source_id,target_id,kind,rationale,provenance_json) VALUES (?,?,?,?,?,?,?)")
+            .bind(&graph.release_id)
+            .bind("EDGE-LEGACY-PRIVATE-SELF")
+            .bind(&legacy_node.id)
+            .bind(&legacy_node.id)
+            .bind("assesses")
+            .bind("legacy private evaluator relationship")
+            .bind("[]")
+            .execute(&database.pool)
+            .await
+            .expect("seed legacy private edge");
+        sqlx::query("INSERT INTO curriculum_search(release_id,node_id,kind,title,summary,source_text) VALUES (?,?,?,?,?,?)")
+            .bind(&graph.release_id)
+            .bind(&legacy_node.id)
+            .bind(&legacy_node.kind)
+            .bind("legacy private evaluator sentinel")
+            .bind("server-only evaluator contract")
+            .bind("legacy_private_evaluator_sentinel")
+            .execute(&database.pool)
+            .await
+            .expect("seed legacy private search row");
+
+        assert!(
+            database
+                .search_curriculum("legacy_private_evaluator_sentinel", None, 10)
+                .await
+                .expect("fail-closed legacy search")
+                .is_empty(),
+            "search must hide stale private rows before reconciliation"
+        );
+        let repaired = database
+            .import_runtime_graph(&graph)
+            .await
+            .expect("same-checksum legacy reconciliation");
+        assert_eq!(repaired["changed"], true);
+
+        let private_nodes: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM curriculum_node WHERE kind = 'test_group' OR node_id LIKE 'TST-%'",
+        )
+        .fetch_one(&database.pool)
+        .await
+        .expect("private node count");
+        let dangling_edges: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM curriculum_edge e LEFT JOIN curriculum_node s ON s.release_id=e.release_id AND s.node_id=e.source_id LEFT JOIN curriculum_node t ON t.release_id=e.release_id AND t.node_id=e.target_id WHERE s.node_id IS NULL OR t.node_id IS NULL",
+        )
+        .fetch_one(&database.pool)
+        .await
+        .expect("dangling edge count");
+        let private_search_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM curriculum_search WHERE kind = 'test_group' OR node_id LIKE 'TST-%'",
+        )
+        .fetch_one(&database.pool)
+        .await
+        .expect("private search count");
+
+        assert_eq!(private_nodes, 0);
+        assert_eq!(private_search_rows, 0);
+        assert_eq!(dangling_edges, 0);
+
+        let clean = database
+            .import_runtime_graph(&graph)
+            .await
+            .expect("clean fast-path import");
+        assert_eq!(clean["changed"], false);
+    }
+
+    /// The search corpus carries the pinned public page text and the tutor
+    /// overlay, and nothing a learner has to earn.
+    #[tokio::test]
+    async fn search_indexes_public_source_text_but_never_answers_or_solutions() {
+        let database = Database::open_memory().await.expect("in-memory database");
+        let graph = crate::graph::RuntimeGraph::load_embedded().expect("embedded graph");
+        database
+            .import_runtime_graph(&graph)
+            .await
+            .expect("runtime graph import");
+
+        // A term that appears only in the Book page body, never in a title or
+        // summary, proves the source text really reached the index.
+        let hits = database
+            .search_curriculum("shadowing", None, 20)
+            .await
+            .expect("search runs");
+        assert!(
+            hits.iter().any(|hit| hit["id"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("LESSON-BOOK-"))),
+            "a body-only Book term must find its page"
+        );
+        assert!(
+            hits.iter().all(|hit| hit["routeTarget"]
+                .as_str()
+                .is_some_and(|route| route.starts_with('/'))),
+            "every hit needs a typed route target"
+        );
+        for hit in &hits {
+            if let Some(id) = hit["id"]
+                .as_str()
+                .filter(|id| id.starts_with("LESSON-BOOK-"))
+            {
+                assert_eq!(
+                    hit["routeTarget"],
+                    serde_json::json!(format!("/lessons/{id}")),
+                    "a Book page must route to its page, not the graph"
+                );
+            }
+        }
+
+        // Nothing the learner must earn may sit in the corpus.
+        for forbidden in [
+            "%Opening a source page changes reading position only%",
+            "%__rust_tutor_hidden%",
+            "%rust_tutor_regression%",
+            "%referenceSolution%",
+            "%revealExplanation%",
+            "%answerIndex%",
+        ] {
+            let leaked: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM curriculum_search WHERE source_text LIKE ?",
+            )
+            .bind(forbidden)
+            .fetch_one(&database.pool)
+            .await
+            .expect("leak probe");
+            assert_eq!(leaked, 0, "search corpus leaked {forbidden}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod practice_acceptance_migration_tests {
+    use super::*;
+
+    async fn populated_v13_pool(item_kind: &str) -> SqlitePool {
+        let options = SqliteConnectOptions::from_str("sqlite::memory:")
+            .unwrap()
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+        sqlx::query("CREATE TABLE schema_migration (version INTEGER PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP) STRICT")
+            .execute(&pool)
+            .await
+            .unwrap();
+        for (version, migration) in [
+            (1_i64, MIGRATION_1),
+            (2, MIGRATION_2),
+            (3, MIGRATION_3),
+            (4, MIGRATION_4),
+            (5, MIGRATION_5),
+            (6, MIGRATION_6),
+            (7, MIGRATION_7),
+            (8, MIGRATION_8),
+            (9, MIGRATION_9),
+            (10, MIGRATION_10),
+            (11, MIGRATION_11),
+            (12, MIGRATION_12),
+            (13, MIGRATION_13),
+        ] {
+            sqlx::raw_sql(migration).execute(&pool).await.unwrap();
+            sqlx::query("INSERT INTO schema_migration(version,checksum) VALUES (?,?)")
+                .bind(version)
+                .bind(format!("{:x}", Sha256::digest(migration.as_bytes())))
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO learner(learner_id,created_at) VALUES ('LEARNER-MIGRATION','1')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO evaluation_stream_run(run_id,learner_id,state,chunks_json,result_json,created_at,updated_at,exercise_id,action,workspace_checksum) VALUES ('RUN-MIGRATION','LEARNER-MIGRATION','completed','[]','{\"status\":\"ACCEPTED\"}','1','1','ITEM-OLD','test',?)")
+            .bind("a".repeat(64))
+            .execute(&pool)
+            .await
+            .unwrap();
+        if item_kind == "invalid" {
+            sqlx::query("PRAGMA ignore_check_constraints=ON")
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        sqlx::query("INSERT INTO workbench_completion VALUES ('LEARNER-MIGRATION','ITEM-OLD',?,'ITEM-NEXT','RUN-MIGRATION',?,'2')")
+            .bind(item_kind)
+            .bind("a".repeat(64))
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("PRAGMA ignore_check_constraints=OFF")
+            .execute(&pool)
+            .await
+            .unwrap();
+        pool
+    }
+
+    #[tokio::test]
+    async fn v14_preserves_populated_v13_rows_and_adds_only_exercise_kind() {
+        let pool = populated_v13_pool("algorithm").await;
+        run_migrations(&pool).await.unwrap();
+        let row: (String, String, String) =
+            sqlx::query_as("SELECT item_id,item_kind,evaluator_run_id FROM workbench_completion")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            row,
+            (
+                "ITEM-OLD".into(),
+                "algorithm".into(),
+                "RUN-MIGRATION".into()
+            )
+        );
+
+        sqlx::query("INSERT INTO evaluation_stream_run(run_id,learner_id,state,chunks_json,result_json,created_at,updated_at,exercise_id,action,workspace_checksum) VALUES ('RUN-EXERCISE','LEARNER-MIGRATION','completed','[]','{\"status\":\"ACCEPTED\"}','3','3','ITEM-EXERCISE','test',?)")
+            .bind("b".repeat(64))
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO workbench_completion VALUES ('LEARNER-MIGRATION','ITEM-EXERCISE','exercise','ITEM-NEXT','RUN-EXERCISE',?,'3')")
+            .bind("b".repeat(64))
+            .execute(&pool)
+            .await
+            .unwrap();
+        let sql: String = sqlx::query_scalar(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='workbench_completion'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(sql.contains("'algorithm', 'project_stage', 'exercise'"));
+    }
+
+    #[tokio::test]
+    async fn v14_constraint_copy_failure_rolls_back_the_whole_table_rebuild() {
+        let pool = populated_v13_pool("invalid").await;
+        run_migrations(&pool)
+            .await
+            .expect_err("invalid source rows must fail the migration");
+        let version: i64 =
+            sqlx::query_scalar("SELECT COALESCE(MAX(version),0) FROM schema_migration")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(version, 13);
+        let sql: String = sqlx::query_scalar(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='workbench_completion'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(!sql.contains("'exercise'"));
+        let kind: String = sqlx::query_scalar("SELECT item_kind FROM workbench_completion")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(kind, "invalid");
+    }
 }

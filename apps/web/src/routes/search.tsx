@@ -71,15 +71,7 @@ function SearchPage() {
               <ol>
                 {entries.map((entry) => (
                   <li key={entry.id}>
-                    {kind === "concept" ? (
-                      <Link to="/concepts/$conceptId" params={{ conceptId: entry.id }}>
-                        {entry.title}
-                      </Link>
-                    ) : (
-                      <Link to="/graph" search={{ id: entry.id, depth: 1 }}>
-                        {entry.title}
-                      </Link>
-                    )}
+                    <a href={entry.routeTarget}>{entry.title}</a>
                     <p>{entry.snippet.replaceAll(/<\/?mark>/g, "")}</p>
                   </li>
                 ))}

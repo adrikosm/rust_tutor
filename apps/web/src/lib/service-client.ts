@@ -1,15 +1,15 @@
+import { z } from "zod";
 import {
   type Bootstrap,
-  type CompletionResult,
-  type EvaluationResult,
-  type TutorContent,
   bootstrapSchema,
+  type CompletionResult,
   completionResultSchema,
+  type EvaluationResult,
   errorEnvelopeSchema,
   evaluationResultSchema,
+  type TutorContent,
   tutorContentSchema,
 } from "./api-contract";
-import { z } from "zod";
 
 export class ServiceError extends Error {
   constructor(
@@ -79,6 +79,23 @@ export async function getAbout() {
       scheduler: z.string(),
       license: z.literal("MIT"),
       offlineRuntime: z.literal(true),
+      contentLicensing: z.object({
+        bundleUse: z.literal("noncommercial"),
+        notice: z.string(),
+        sources: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            publisher: z.string(),
+            license: z.string(),
+            licenseUrl: z.string().nullable(),
+            attribution: z.string(),
+            use: z.string(),
+            canonicalUrl: z.string(),
+            sourceCommit: z.string().nullable(),
+          }),
+        ),
+      }),
     }),
   );
 }
@@ -167,7 +184,7 @@ export async function evaluateRust(input: {
   runId: string;
   exerciseId: string;
   action: "check" | "test" | "clippy" | "format_check" | "format_preview" | "run";
-  source: string;
+  source?: string;
   files?: Record<string, string>;
   workspaceRevision?: number;
   contentHash: string;
@@ -180,7 +197,7 @@ export async function evaluateRust(input: {
       runId: input.runId,
       exerciseId: input.exerciseId,
       action: input.action,
-      files: input.files ?? { "src/main.rs": input.source },
+      ...(input.files ? { files: input.files } : { source: input.source ?? "" }),
       workspaceRevision: input.workspaceRevision,
       contentHash: input.contentHash,
       case: input.case,
@@ -194,7 +211,7 @@ export async function evaluateRustStreaming(
     runId: string;
     exerciseId: string;
     action: "check" | "test" | "clippy" | "format_check" | "format_preview" | "run";
-    source: string;
+    source?: string;
     files?: Record<string, string>;
     workspaceRevision?: number;
     contentHash: string;
@@ -209,7 +226,7 @@ export async function evaluateRustStreaming(
       runId: input.runId,
       exerciseId: input.exerciseId,
       action: input.action,
-      files: input.files ?? { "src/main.rs": input.source },
+      ...(input.files ? { files: input.files } : { source: input.source ?? "" }),
       workspaceRevision: input.workspaceRevision,
       contentHash: input.contentHash,
       case: input.case,
@@ -273,8 +290,8 @@ export async function cancelEvaluation(runId: string): Promise<void> {
 
 const workbenchCompletionSchema = z.object({
   itemId: z.string(),
-  itemKind: z.enum(["algorithm", "project_stage", "lesson"]),
-  unlockedItemId: z.string(),
+  itemKind: z.enum(["algorithm", "project_stage", "lesson", "exercise"]),
+  unlockedItemId: z.string().nullable(),
   evaluatorRunId: z.string(),
   workspaceChecksum: z.string().length(64),
   acceptedAt: z.string(),
@@ -292,6 +309,40 @@ export async function acceptWorkbenchItem(itemId: string, runId: string) {
     body: JSON.stringify({ runId }),
   });
   return decode(response, workbenchCompletionSchema);
+}
+
+const practiceAcceptanceSchema = workbenchCompletionSchema.extend({
+  attemptId: z.string().optional(),
+  projectionChecksum: z.string().length(64).optional(),
+  idempotentRetry: z.boolean(),
+  conceptIds: z.array(z.string()),
+  outcomeIds: z.array(z.string()),
+  nextRecommendation: z
+    .object({
+      id: z.string(),
+      route: z.object({ kind: z.literal("exercise"), href: z.string() }),
+    })
+    .nullable(),
+});
+
+export async function acceptPracticeItem(
+  id: string,
+  input: {
+    runId: string;
+    plan: string;
+    confidence: number;
+    support: "none" | "compiler" | "official_docs" | "hint" | "full_reveal" | "external_help";
+    reflection: string;
+    hintLevel: number;
+    accessibilityBypass: boolean;
+  },
+) {
+  const response = await authedFetch(`/api/v1/practice/${encodeURIComponent(id)}/accept`, {
+    method: "POST",
+    json: true,
+    body: JSON.stringify(input),
+  });
+  return decode(response, practiceAcceptanceSchema);
 }
 
 const courseChapterProgressSchema = z.object({
@@ -501,6 +552,33 @@ export async function getGraph(input: {
   return decode(response, graphResultSchema);
 }
 
+const graphMapSchema = z.object({
+  releaseId: z.string(),
+  checksum: z.string(),
+  nodes: z.array(
+    z.object({
+      id: z.string(),
+      kind: z.string(),
+      title: z.string(),
+      tier: z.number().optional(),
+      routeTarget: z.string().optional(),
+      degree: z.number(),
+    }),
+  ),
+  edges: z.array(z.object({ source: z.string(), target: z.string(), kind: z.string() })),
+  legend: z.record(z.string(), z.string()),
+  nodeKinds: z.record(z.string(), z.number()),
+});
+
+export type GraphMap = z.infer<typeof graphMapSchema>;
+export type GraphMapNode = GraphMap["nodes"][number];
+
+/** Whole-graph projection used by the interactive canvas map. */
+export async function getGraphMap(): Promise<GraphMap> {
+  const response = await fetch("/api/v1/graph/map");
+  return decode(response, graphMapSchema);
+}
+
 const graphPathSchema = z.object({
   releaseId: z.string(),
   startId: z.string(),
@@ -576,7 +654,10 @@ const searchResultSchema = z.object({
         kind: z.string(),
         title: z.string(),
         snippet: z.string(),
-        source: z.string(),
+        summary: z.string(),
+        // Typed by the service: the page, exercise, concept, error, or project
+        // this hit actually names.
+        routeTarget: z.string(),
       }),
     ),
   ),
@@ -889,7 +970,8 @@ export const lessonV2Schema = z
           id: z.string(),
           prompt: z.string(),
           options: z.array(z.string()).min(2),
-          explanation: z.string().optional(),
+          // No answerIndex and no explanation: the service strips both, and
+          // they only arrive from the commit endpoint.
         }),
       )
       .default([]),
@@ -908,11 +990,44 @@ export const lessonV2Schema = z
     sources: z.array(sourceLinkSchema).default([]),
     sourceIds: z.array(z.string()).default([]),
     sectionSources: z.array(sourceLinkSchema).default([]),
+    furtherReading: z
+      .array(
+        z.object({
+          libraryId: z.string(),
+          library: z.string(),
+          title: z.string(),
+          url: z.string(),
+          why: z.string(),
+          license: z.string(),
+          level: z.string(),
+        }),
+      )
+      .default([]),
     completion: z
       .object({ requiredCheckIds: z.array(z.string()), requiredExerciseIds: z.array(z.string()) })
       .optional(),
     review: z
       .object({ status: z.string(), reviewedAt: z.string(), reviewer: z.string() })
+      .optional(),
+    pageSequence: z.number().int().positive().optional(),
+    pageRole: z.enum(["lesson", "context", "reference"]).optional(),
+    previousPageId: z.string().nullable().default(null),
+    nextPageId: z.string().nullable().default(null),
+    sourceDocument: z
+      .object({
+        pageId: z.string(),
+        title: z.string(),
+        sourcePath: z.string(),
+        sourceCommit: z.string(),
+        canonicalUrl: z.string().url(),
+        sha256: z.string().length(64),
+        license: z.string(),
+        attribution: z.string(),
+        changeNotes: z.array(z.string()),
+        headings: z.array(z.object({ level: z.number().int(), id: z.string(), text: z.string() })),
+        blocks: z.array(z.unknown()),
+      })
+      .passthrough()
       .optional(),
   })
   .passthrough();
@@ -922,6 +1037,7 @@ export const practiceItemV2Schema = z
     id: z.string(),
     family: z.string(),
     sequence: z.number().int().nonnegative().optional(),
+    pilot: z.boolean().optional(),
     title: z.string(),
     moduleId: z.string().optional(),
     lessonId: z.string().optional(),
@@ -943,6 +1059,21 @@ export const practiceItemV2Schema = z
         manifest: z.string().default(""),
         files: z.array(curriculumFileSchema).default([]),
       })
+      .optional(),
+    sourceDocument: z
+      .object({
+        exerciseId: z.string(),
+        title: z.string(),
+        sourcePath: z.string(),
+        sourceCommit: z.string(),
+        canonicalUrl: z.string().url(),
+        sha256: z.string().length(64),
+        license: z.string(),
+        attribution: z.string(),
+        changeNotes: z.array(z.string()),
+        blocks: z.array(z.unknown()),
+      })
+      .passthrough()
       .optional(),
     hints: z.array(z.union([z.string(), z.object({ text: z.string() })])).default([]),
     commonMistakes: z.array(z.string()).default([]),
@@ -982,7 +1113,11 @@ export const practiceListSchema = z.object({
   pageSize: z.number().int().min(1).max(25),
   totalPages: z.number().int().nonnegative(),
 });
-const practiceDetailSchema = z.object({ releaseId: z.string(), item: practiceItemV2Schema });
+const practiceDetailSchema = z.object({
+  releaseId: z.string(),
+  releaseChecksum: z.string().length(64),
+  item: practiceItemV2Schema,
+});
 
 export type CurriculumLesson = z.infer<typeof lessonV2Schema>;
 export type CurriculumPracticeItem = z.infer<typeof practiceItemV2Schema>;
@@ -990,6 +1125,111 @@ export type CurriculumPracticeItem = z.infer<typeof practiceItemV2Schema>;
 export async function getCurriculumLesson(id: string) {
   const response = await fetch(`/api/v1/lessons/${encodeURIComponent(id)}`);
   return decode(response, lessonEnvelopeSchema);
+}
+
+const trackPageSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  pageSequence: z.number().int().positive(),
+  pageRole: z.enum(["lesson", "context", "reference"]),
+  estimateMinutes: z.number().int().positive(),
+  difficulty: z.string(),
+  canonicalUrl: z.string().url(),
+  checkIds: z.array(z.string()),
+  checksCommitted: z.number().int().nonnegative(),
+  read: z.boolean(),
+});
+
+const learnTracksSchema = z.object({
+  releaseId: z.string(),
+  book: z.object({
+    modules: z.array(
+      z.object({
+        id: z.string(),
+        number: z.number().int().nonnegative(),
+        title: z.string(),
+        summary: z.string(),
+        pages: z.array(trackPageSchema),
+      }),
+    ),
+    progress: z.object({ pagesRead: z.number().int(), pages: z.number().int() }),
+  }),
+  practice: z.object({
+    arcs: z.array(
+      z.object({
+        id: z.string(),
+        count: z.number().int(),
+        completed: z.number().int(),
+        exercises: z.array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            sequence: z.number().int(),
+            difficulty: z.string(),
+            estimateMinutes: z.number().int(),
+            completed: z.boolean(),
+            scored: z.boolean(),
+            suiteReview: z.enum(["reviewed", "pending"]),
+          }),
+        ),
+      }),
+    ),
+    progress: z.object({ completed: z.number().int(), total: z.number().int() }),
+  }),
+  guided: z.object({
+    source: z.string(),
+    chapters: z.array(
+      z.object({
+        chapterId: z.string(),
+        clearedStops: z.array(z.string()),
+        ran: z.boolean(),
+      }),
+    ),
+  }),
+  nextRecommendation: z.object({
+    book: z.object({ kind: z.string(), id: z.string(), title: z.string() }).nullable(),
+    practice: z.object({ kind: z.string(), id: z.string(), title: z.string() }).nullable(),
+  }),
+});
+
+export type LearnTracks = z.infer<typeof learnTracksSchema>;
+
+export async function getLearnTracks() {
+  const response = await authedFetch("/api/v1/learn/tracks");
+  return decode(response, learnTracksSchema);
+}
+
+const lessonCheckCommitmentSchema = z.object({
+  checkId: z.string(),
+  chosenIndex: z.number().int(),
+  correct: z.boolean(),
+  explanation: z.string(),
+  committedAt: z.string(),
+});
+
+const lessonCheckResultSchema = lessonCheckCommitmentSchema.extend({
+  lessonId: z.string(),
+  alreadyCommitted: z.boolean(),
+});
+
+export type LessonCheckResult = z.infer<typeof lessonCheckResultSchema>;
+
+/** Grading lives on the service; the explanation only exists after commitment. */
+export async function commitLessonCheck(lessonId: string, checkId: string, chosenIndex: number) {
+  const response = await authedFetch(
+    `/api/v1/lessons/${encodeURIComponent(lessonId)}/checks/${encodeURIComponent(checkId)}`,
+    { method: "POST", json: true, body: JSON.stringify({ chosenIndex }) },
+  );
+  return decode(response, lessonCheckResultSchema);
+}
+
+export async function getLessonCheckProgress(lessonId: string) {
+  const response = await authedFetch(`/api/v1/lessons/${encodeURIComponent(lessonId)}/checks`);
+  return decode(
+    response,
+    z.object({ lessonId: z.string(), commitments: z.array(lessonCheckCommitmentSchema) }),
+  );
 }
 
 export type PracticeFilters = {

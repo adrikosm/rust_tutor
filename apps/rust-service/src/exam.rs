@@ -130,14 +130,21 @@ impl FinalExam {
             return Err("final exam must contain each required category exactly once".into());
         }
         let mut ids = HashSet::new();
+        let mut prompts = HashSet::new();
+        let mut explanations = HashSet::new();
         for item in &self.items {
             let node_kind = |id: &str| graph.node(id).map(|node| node.kind.as_str());
             if !ids.insert(item.id.as_str())
+                || !prompts.insert(item.prompt.as_str())
+                || !explanations.insert(item.explanation.as_str())
                 || item.choices.len() < 2
+                || item.choices.iter().collect::<HashSet<_>>().len() != item.choices.len()
                 || item.answer_index >= item.choices.len()
                 || item.item_checksum != item.canonical_checksum()
                 || graph.node(&item.primary_outcome_id).is_none()
-                || item.rubric.trim().is_empty()
+                || item.prompt.trim().len() < 40
+                || item.rubric.trim().len() < 40
+                || item.explanation.trim().len() < 80
                 || node_kind(&item.remediation_lesson_id) != Some("concept")
                 || node_kind(&item.independent_practice_id) != Some("exercise")
                 || node_kind(&item.checkpoint_id) != Some("assessment")

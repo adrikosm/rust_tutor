@@ -3,8 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { getDashboardSnapshot, getErrors, getJournal } from "../../lib/service-client";
 
 import { useCourseProgressSync } from "./ChapterPage";
-import { DataSurfaceState } from "./LearningShared";
 import { chapterIsComplete, chapters } from "./course";
+import { DataSurfaceState } from "./LearningShared";
 
 export function DashboardPage() {
   useCourseProgressSync();

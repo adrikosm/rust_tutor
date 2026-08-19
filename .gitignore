@@ -76,5 +76,8 @@ tmp/
 .env.*
 !.env.example
 data/
+# Generated from scripts/reference-library.mjs and imported by the web app, so
+# it ships with the source like release.json rather than being local state.
+!apps/web/src/data/
 backups/
 *.sqlite*

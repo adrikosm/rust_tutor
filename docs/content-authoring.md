@@ -6,8 +6,11 @@ Author against the JSON schemas and the canonical graph/feed IDs. A released les
 
 Curriculum v2 extends that contract across the complete Book, imported exercise, interview-practice,
 and flagship-project paths. The tracked release lives under `content/curriculum-v2/`; its validator
-requires 21 Book modules, 98 pinned Mainmatter units, 150 original interview items, and 27 executable
-PULSE/QUAY/TESSERA stages. Generated runtime data must be reproducible from these tracked inputs.
+requires 23 Book containers (Introduction, chapters 1–21, and Appendices), 109 byte-verified Book
+pages with unique recall checks, 98 pinned Mainmatter units with reviewed protected suites, 48
+distinct authored interview contracts, and 27 executable PULSE/QUAY/TESSERA stages. Counts may
+never be increased by relabeling the same prompt, tests, or solution. Generated runtime data must
+be reproducible from these tracked inputs.
 
 Ordinary lesson/practice APIs are safe projections: remove recall answers, hidden and regression
 tests, reference solutions, and locked explanations. The authenticated reveal action records
@@ -19,6 +22,12 @@ must not enter commercial builds without separate permission. Interview items ma
 external URL/title, but all local expression and tests must pass the originality review in
 `docs/contributing/leetcode-non-copying-policy.md`.
 
-Run `pnpm content:validate`, `pnpm content:manifest`, and `pnpm all-checks`. The validator reports stable-ID collisions, graph cycles/dangling edges, missing provenance/licenses/review, unsafe markup, assessment gaps, and contract drift. Volatile tool/API claims require a pinned primary source and review date. Untrusted research enters the raw/wiki layers and cannot become a released recommendation without promotion review.
+Run `pnpm content:validate`, `pnpm content:manifest`, and `pnpm all-checks`. The validator reports
+stable-ID collisions, graph cycles/dangling edges, missing provenance/licenses/review, unsafe
+markup, assessment gaps, duplicate question/explanation or exercise contracts, incomplete source
+excerpts, and evaluator drift. Every scored exercise must pass its exact server-owned suite with the
+pinned reference and fail it with the starter. Volatile tool/API claims require a pinned primary
+source and review date. Untrusted research enters the raw/wiki layers and cannot become a released
+recommendation without promotion review.
 
 For a sample, copy the structure—not the identifiers or answers—from `content/ownership-pack`. Project stages add one evolving workspace, a predecessor, visible/unseen/prior-regression groups, grader type, artifact rubric, hints, reset/checkpoint lineage, unlock evidence, and source/license scope.

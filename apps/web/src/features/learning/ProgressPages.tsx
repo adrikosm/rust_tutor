@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   acceptWorkbenchItem,
   checkpointProjectWorkspace,
@@ -9,6 +9,7 @@ import {
   downloadProjectPortfolio,
   evaluateRustStreaming,
   finishDiagnosticSession,
+  type GraphResult,
   getBootstrap,
   getCatalog,
   getConfidenceCalibration,
@@ -19,6 +20,7 @@ import {
   getGraphPrerequisites,
   getGraphTours,
   getLearnerPlan,
+  getLearnTracks,
   getProject,
   getProjectCheckpoints,
   getProjectStage,
@@ -33,12 +35,12 @@ import {
   saveLearnerPlan,
   saveProjectWorkspace,
   searchContent,
-  type GraphResult,
 } from "../../lib/service-client";
 
 import { useCourseProgressSync } from "./ChapterPage";
-import { ContextStrip, PageHero, statusLabel } from "./LearningShared";
 import { chapterIsComplete, chapterProgress, chapters, strands } from "./course";
+import { GraphMap } from "./GraphMap";
+import { ContextStrip, PageHero, statusLabel } from "./LearningShared";
 
 const MonacoSourceEditor = lazy(() =>
   import("../workbench/MonacoSourceEditor").then((module) => ({
@@ -651,10 +653,26 @@ export function GraphPage({
     enabled: search.trim().length >= 2,
   });
   const [selectedKinds, setSelectedKinds] = useState(() => kinds.split(",").filter(Boolean));
+  const navigate = useNavigate();
+  // The overlay is a flat list of `{ nodeId, state, … }` projection rows; the
+  // map only needs the ids the learner has retained, which is the predicate
+  // the dashboard's retained coverage already counts. The set must be
+  // referentially stable or the canvas effect would tear down on every render.
+  const masteredIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of overlay.data?.learnerState ?? []) {
+      if (typeof row.nodeId === "string" && row.state === "retained") ids.add(row.nodeId);
+    }
+    return ids;
+  }, [overlay.data]);
   const heading = useRef<HTMLHeadingElement>(null);
+  const graphLoaded = useRef(false);
   useEffect(() => {
-    if (graph.data) heading.current?.focus();
+    if (!graph.data) return;
+    if (graphLoaded.current) heading.current?.focus();
+    else graphLoaded.current = true;
   }, [graph.data]);
+
   const selectedNode = graph.data?.nodes.find((node) => node.id === selectedId);
   const nodeById = new Map(graph.data?.nodes.map((node) => [node.id, node]) ?? []);
   const selectedRelations =
@@ -762,35 +780,40 @@ export function GraphPage({
             <option value="3">Three steps</option>
           </select>
           {graph.data && (
-            <fieldset>
-              <legend>Relationship kinds</legend>
-              <div className="graph-kind-filters">
-                {Object.keys(graph.data.legend).map((kind) => (
-                  <label key={kind}>
-                    <input
-                      type="checkbox"
-                      checked={selectedKinds.length === 0 || selectedKinds.includes(kind)}
-                      onChange={(event) => {
-                        if (selectedKinds.length === 0) {
-                          setSelectedKinds(
-                            event.target.checked
-                              ? []
-                              : Object.keys(graph.data.legend).filter((entry) => entry !== kind),
-                          );
-                        } else {
-                          setSelectedKinds((current) =>
-                            event.target.checked
-                              ? [...current, kind]
-                              : current.filter((entry) => entry !== kind),
-                          );
-                        }
-                      }}
-                    />
-                    {statusLabel(kind)}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <details className="graph-query__kinds">
+              <summary>
+                Focused relationship kinds · {selectedKinds.length || "all"} selected
+              </summary>
+              <fieldset>
+                <legend className="visually-hidden">Filter focused relationship kinds</legend>
+                <div className="graph-kind-filters">
+                  {Object.keys(graph.data.legend).map((kind) => (
+                    <label key={kind}>
+                      <input
+                        type="checkbox"
+                        checked={selectedKinds.length === 0 || selectedKinds.includes(kind)}
+                        onChange={(event) => {
+                          if (selectedKinds.length === 0) {
+                            setSelectedKinds(
+                              event.target.checked
+                                ? []
+                                : Object.keys(graph.data.legend).filter((entry) => entry !== kind),
+                            );
+                          } else {
+                            setSelectedKinds((current) =>
+                              event.target.checked
+                                ? [...current, kind]
+                                : current.filter((entry) => entry !== kind),
+                            );
+                          }
+                        }}
+                      />
+                      {statusLabel(kind)}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </details>
           )}
           <button className="button" type="submit">
             Apply graph filters
@@ -800,6 +823,14 @@ export function GraphPage({
           </Link>
         </form>
       </section>
+      <GraphMap
+        selectedId={selectedId}
+        masteredIds={masteredIds}
+        onSelect={(id) =>
+          navigate({ to: "/graph", search: { id, depth, kinds: kinds || undefined } })
+        }
+      />
+
       {graph.isPending && <p role="status">Loading the reviewed graph release…</p>}
       {graph.isError && <p role="alert">{graph.error.message}</p>}
       {graph.data && (
@@ -943,9 +974,7 @@ export function GraphPage({
             <pre>
               <code>
                 {JSON.stringify(
-                  overlay.data.learnerState.filter(
-                    (entry) => entry.conceptId === selectedId || entry.id === selectedId,
-                  ),
+                  overlay.data.learnerState.filter((entry) => entry.nodeId === selectedId),
                   null,
                   2,
                 )}
@@ -1130,11 +1159,78 @@ function CoursePath() {
   );
 }
 
+/**
+ * The Rust Book track: 23 containers over 109 pinned pages, in source order.
+ *
+ * Reading order is navigation, not readiness — no page is locked. A page counts
+ * as read only once its recall checks are committed, so opening one never
+ * manufactures progress.
+ */
+function BookTrackOutline() {
+  const tracks = useQuery({ queryKey: ["learn-tracks"], queryFn: getLearnTracks });
+  if (tracks.isPending) return <p role="status">Loading the Rust Book track…</p>;
+  if (tracks.isError) return <p role="alert">{tracks.error.message}</p>;
+  const { book, nextRecommendation } = tracks.data;
+  const resume = nextRecommendation.book;
+  const currentModule = book.modules.find((module) =>
+    module.pages.some((page) => page.id === resume?.id),
+  );
+  return (
+    <section className="book-track" aria-label="Complete Rust Book track">
+      <div className="book-track__status">
+        <p>
+          <strong>
+            {book.progress.pagesRead} of {book.progress.pages}
+          </strong>{" "}
+          pages checked · source pinned to the stable Rust Book
+        </p>
+        {resume && (
+          <Link className="button" to="/lessons/$lessonId" params={{ lessonId: resume.id }}>
+            {book.progress.pagesRead === 0 ? "Start reading" : "Resume"} · {resume.title} →
+          </Link>
+        )}
+      </div>
+      {book.modules.map((module) => (
+        <details key={module.id} open={module.id === currentModule?.id}>
+          <summary>
+            <span className="book-track__number" aria-hidden="true">
+              {String(module.number).padStart(2, "0")}
+            </span>
+            <span>
+              <strong>{module.title}</strong>
+              <small>
+                {module.pages.filter((page) => page.read).length}/{module.pages.length} pages
+              </small>
+            </span>
+          </summary>
+          <p className="book-track__summary">{module.summary}</p>
+          <ol className="book-track__pages">
+            {module.pages.map((page) => (
+              <li key={page.id} data-current={page.id === resume?.id || undefined}>
+                <Link to="/lessons/$lessonId" params={{ lessonId: page.id }}>
+                  {page.title}
+                </Link>
+                <small>
+                  {page.pageRole === "lesson" ? `${page.estimateMinutes} min` : page.pageRole} ·{" "}
+                  {page.read ? "checked" : "unread"}
+                </small>
+              </li>
+            ))}
+          </ol>
+        </details>
+      ))}
+    </section>
+  );
+}
+
 export function CurriculumPage({ query = "", track = "" }: { query?: string; track?: string }) {
   // Re-hydrate the local progress cache from SQLite so the path reflects work
   // done in another browser or after a storage clear.
   useCourseProgressSync();
-  const searching = Boolean(query || track);
+  // `track` selects which of the two linked tracks is shown; `q` alone drives
+  // the released-record search.
+  const bookTrack = track === "book";
+  const searching = Boolean(query);
   const curriculum = useQuery({ queryKey: ["curriculum"], queryFn: getCurriculum });
   const chaptersComplete = chapters.filter(chapterIsComplete).length;
   const started = chapters.some((chapter) => {
@@ -1145,7 +1241,6 @@ export function CurriculumPage({ query = "", track = "" }: { query?: string; tra
     chapters.find((chapter) => !chapterIsComplete(chapter)) ?? chapters[chapters.length - 1];
   const filtered = searching
     ? (curriculum.data?.modules
-        .filter((module) => !track || module.id.includes(track))
         .map((module) => ({
           ...module,
           records: module.records.filter((record) => {
@@ -1158,38 +1253,49 @@ export function CurriculumPage({ query = "", track = "" }: { query?: string; tra
   const matchCount = filtered.reduce((sum, module) => sum + module.records.length, 0);
   return (
     <>
-      <PageHero
-        eyebrow={`Curriculum · ${chapters.length} chapters · one ordered route`}
-        title="The learning path"
-        lede="Read the model, clear the stops, run real code. Ownership arrives in chapter five with the compiler ready to check your reasoning."
-        numeral={String(chapters.length)}
-        actions={
-          current && (
-            <Link className="button" to="/learn/$chapterId" params={{ chapterId: current.id }}>
-              {started ? `Continue chapter ${current.number} →` : "Start chapter 1 →"}
+      {bookTrack ? (
+        <PageHero
+          eyebrow="Curriculum · the complete Rust Book · 109 pinned pages"
+          title="The Rust Book, end to end"
+          lede="Every page from the Introduction through Appendix G, byte-for-byte from the pinned stable source, with Rust Tutor objectives, checks, and practice links layered on top."
+          numeral="109"
+        />
+      ) : (
+        <PageHero
+          eyebrow={`Curriculum · ${chapters.length} chapters · one ordered route`}
+          title="The learning path"
+          lede="Read the model, clear the stops, run real code. Ownership arrives in chapter five with the compiler ready to check your reasoning."
+          numeral={String(chapters.length)}
+          actions={
+            current && (
+              <Link className="button" to="/learn/$chapterId" params={{ chapterId: current.id }}>
+                {started ? `Continue chapter ${current.number} →` : "Start chapter 1 →"}
+              </Link>
+            )
+          }
+        />
+      )}
+      {!bookTrack && (
+        <ContextStrip
+          meta={
+            <Link to="/graph" search={{ id: "CON-RUST-OWNERSHIP-001", depth: 1 }}>
+              see it as a graph →
             </Link>
-          )
-        }
-      />
-      <ContextStrip
-        meta={
-          <Link to="/graph" search={{ id: "CON-RUST-OWNERSHIP-001", depth: 1 }}>
-            see it as a graph →
-          </Link>
-        }
-      >
-        <span>
-          <strong>{chaptersComplete}</strong> of {chapters.length} chapters cleared
-        </span>
-        {current && (
+          }
+        >
           <span>
-            you are on{" "}
-            <strong>
-              chapter {current.number} — {current.title}
-            </strong>
+            <strong>{chaptersComplete}</strong> of {chapters.length} chapters cleared
           </span>
-        )}
-      </ContextStrip>
+          {current && (
+            <span>
+              you are on{" "}
+              <strong>
+                chapter {current.number} — {current.title}
+              </strong>
+            </span>
+          )}
+        </ContextStrip>
+      )}
       {searching ? (
         <section className="curriculum-results" aria-label="Curriculum search results">
           <p className="eyebrow">
@@ -1221,7 +1327,27 @@ export function CurriculumPage({ query = "", track = "" }: { query?: string; tra
           </Link>
         </section>
       ) : (
-        <CoursePath />
+        <>
+          <nav className="track-switcher" aria-label="Learning tracks">
+            <Link
+              to="/curriculum"
+              search={{ q: "", track: "" }}
+              aria-current={bookTrack ? undefined : "page"}
+            >
+              <strong>Guided Rust Tutor</strong>
+              <small>{chapters.length} authored chapters · one ordered route</small>
+            </Link>
+            <Link
+              to="/curriculum"
+              search={{ q: "", track: "book" }}
+              aria-current={bookTrack ? "page" : undefined}
+            >
+              <strong>Complete Rust Book</strong>
+              <small>109 pinned pages · Introduction through Appendix G</small>
+            </Link>
+          </nav>
+          {bookTrack ? <BookTrackOutline /> : <CoursePath />}
+        </>
       )}
     </>
   );

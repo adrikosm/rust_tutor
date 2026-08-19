@@ -8,8 +8,6 @@ import {
   useState,
 } from "react";
 import type { EvaluationResult } from "../../lib/api-contract";
-import { statusLabel } from "./LearningShared";
-import { ConsoleOutput } from "./PracticePages";
 import {
   completeRust,
   createJournalEntry,
@@ -20,15 +18,17 @@ import {
 } from "../../lib/service-client";
 import {
   type Chapter,
-  type Section,
-  type Stop,
   chapterById,
   chapterNeighbors,
   chapterProgress,
   chapters,
   mergeServerProgress,
+  type Section,
+  type Stop,
   saveChapterProgress,
 } from "./course";
+import { statusLabel } from "./LearningShared";
+import { ConsoleOutput } from "./PracticePages";
 
 /**
  * Pulls durable course progress from SQLite once and folds it into the
@@ -340,8 +340,13 @@ export function ChapterTerminal({
         {
           runId: `RUN-${crypto.randomUUID()}`,
           exerciseId,
-          action: chapter.terminal.exerciseId ? "test" : "run",
+          action: chapter.terminal.exerciseId
+            ? "test"
+            : chapter.terminal.checkOnly
+              ? "check"
+              : "run",
           source,
+          files: chapter.terminal.checkOnly ? { [chapter.terminal.file]: source } : undefined,
           contentHash,
         },
         (chunk) => setChunks((current) => [...current.slice(-199), chunk]),
@@ -523,7 +528,13 @@ export function ChapterTerminal({
             disabled={evaluation.isPending || !bootstrap.data?.capabilities.compiler}
             onClick={() => evaluation.mutate()}
           >
-            {evaluation.isPending ? "Running…" : "▶ Run"}
+            {evaluation.isPending
+              ? chapter.terminal.checkOnly
+                ? "Checking…"
+                : "Running…"
+              : chapter.terminal.checkOnly
+                ? "✓ Check"
+                : "▶ Run"}
           </button>
         </div>
       </header>
@@ -646,7 +657,11 @@ export function ChapterTerminal({
           </>
         )}
         {!output && !evaluation.isPending && chunks.length === 0 && (
-          <p className="chapter-terminal__idle">Run the code to see real compiler output here.</p>
+          <p className="chapter-terminal__idle">
+            {chapter.terminal.checkOnly
+              ? "Check the code to see real compiler output here."
+              : "Run the code to see real compiler output here."}
+          </p>
         )}
       </section>
       {chapter.terminal.exerciseId && (

@@ -30,6 +30,8 @@ export type ChapterTerminal = {
   code: string;
   task: string;
   hints: string[];
+  /** Compile a library snippet without pretending it has a runnable binary. */
+  checkOnly?: boolean;
   /** Present only when a reviewed hidden-test contract exists for this code. */
   exerciseId?: string;
 };

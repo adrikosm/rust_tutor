@@ -3,12 +3,16 @@
 //! portable import symmetry/conflicts, and evaluator run persistence.
 
 use rust_tutor_service::db::{
-    Database, ImportMode, NewAttemptEvent, NewProjectWorkspace, NewSession, RebuildMode,
+    Database, ImportMode, NewAttemptEvent, NewEvaluatorLog, NewProjectWorkspace, NewSession,
+    RebuildMode,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 const LEARNER: &str = "LEARNER-LOCAL-001";
+const PRACTICE_ITEM: &str = "mainmatter-01-intro-00-welcome";
+const PRACTICE_RELEASE: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const PRACTICE_SUITE: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 fn session(suffix: &str, item: &str, at: &str) -> NewSession {
     NewSession {
@@ -54,6 +58,87 @@ async fn record(db: &Database, suffix: &str, concept: &str, score: f64, day: u32
     db.record_attempt_bundle(&new_session, "evaluated", &events, None, "mastery-v1")
         .await
         .expect("attempt bundle records");
+}
+
+fn practice_bundle(
+    suffix: &str,
+    item: &str,
+) -> (NewSession, Vec<NewAttemptEvent>, NewEvaluatorLog) {
+    let new_session = NewSession {
+        learner_id: LEARNER.to_owned(),
+        session_id: format!("SESSION-PRACTICE-{suffix}"),
+        attempt_id: format!("ATTEMPT-PRACTICE-{suffix}"),
+        item_id: item.to_owned(),
+        item_version: 1,
+        started_at: "9500".to_owned(),
+        run_id: format!("TRACE-PRACTICE-{suffix}"),
+        request_id: format!("REQUEST-PRACTICE-{suffix}"),
+    };
+    let event = NewAttemptEvent {
+        event_id: format!("EVENT-PRACTICE-{suffix}"),
+        attempt_id: new_session.attempt_id.clone(),
+        sequence: 0,
+        idempotency_key: format!("IDEMPOTENCY-PRACTICE-{suffix}"),
+        kind: "assessment_scored".to_owned(),
+        payload_json: json!({
+            "conceptId":"CON-MM-001",
+            "outcomeIds":["OUT-MM-001"],
+            "score":1.0,
+            "itemId":item,
+            "variantGroup":"VG-MM-ARC-01",
+            "kind":"implement",
+            "support":"none",
+            "day":1,
+            "criticalMisconception":false,
+            "primaryOutcome":true
+        })
+        .to_string(),
+        occurred_at: new_session.started_at.clone(),
+        run_id: new_session.run_id.clone(),
+        request_id: new_session.request_id.clone(),
+    };
+    let evaluator_log = NewEvaluatorLog {
+        evaluator_run_id: format!("EVALUATOR-PRACTICE-{suffix}"),
+        attempt_id: new_session.attempt_id.clone(),
+        event_id: Some(event.event_id.clone()),
+        run_id: new_session.run_id.clone(),
+        request_id: new_session.request_id.clone(),
+        status: "ACCEPTED".to_owned(),
+        toolchain_json: "{}".to_owned(),
+        detail_json: json!({"contentHash":PRACTICE_RELEASE,"contractChecksum":PRACTICE_SUITE})
+            .to_string(),
+        created_at: new_session.started_at.clone(),
+    };
+    (new_session, vec![event], evaluator_log)
+}
+
+#[allow(clippy::too_many_arguments)] // Mirrors the persisted evaluator run row under test.
+async fn practice_run(
+    db: &Database,
+    run_id: &str,
+    exercise_id: &str,
+    state: &str,
+    action: &str,
+    status: &str,
+    release: &str,
+    suite: &str,
+) {
+    db.record_completed_run(
+        LEARNER,
+        run_id,
+        exercise_id,
+        action,
+        &"c".repeat(64),
+        state,
+        &json!({
+            "status":status,
+            "diagnostics":[],
+            "replay":{"contentHash":release,"contractChecksum":suite,"toolchain":{}}
+        }),
+        "9499",
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -434,4 +519,323 @@ async fn curriculum_v2_reveals_and_workspace_revisions_are_durable() {
         .unwrap();
     assert_eq!(latest["files"]["src/lib.rs"], "second");
     assert_eq!(latest["checkpoint"], true);
+}
+
+#[tokio::test]
+async fn practice_acceptance_is_atomic_durable_and_idempotent_for_the_same_run() {
+    let db = Database::open_memory().await.unwrap();
+    let (new_session, events, log) = practice_bundle("OK", PRACTICE_ITEM);
+    practice_run(
+        &db,
+        &log.evaluator_run_id,
+        PRACTICE_ITEM,
+        "completed",
+        "test",
+        "ACCEPTED",
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+    )
+    .await;
+    let accepted = db
+        .accept_practice_bundle(
+            &new_session,
+            &events,
+            &log,
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+            Some("mainmatter-01-intro-01-toolchain"),
+            "mastery-v1",
+        )
+        .await
+        .unwrap();
+    assert_eq!(accepted["itemKind"], "exercise");
+    assert_eq!(
+        accepted["unlockedItemId"],
+        "mainmatter-01-intro-01-toolchain"
+    );
+    assert_eq!(accepted["idempotentRetry"], false);
+    let retried = db
+        .accept_practice_bundle(
+            &new_session,
+            &events,
+            &log,
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+            Some("mainmatter-01-intro-01-toolchain"),
+            "mastery-v1",
+        )
+        .await
+        .unwrap();
+    assert_eq!(retried["idempotentRetry"], true);
+
+    let export = db.portable_export(LEARNER).await.unwrap();
+    assert_eq!(export["payload"]["attempts"].as_array().unwrap().len(), 1);
+    assert_eq!(export["payload"]["events"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        export["payload"]["workbenchCompletions"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        db.evidence_timeline(LEARNER, Some("CON-MM-001"))
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+
+    let (other_session, other_events, other_log) = practice_bundle("OTHER", PRACTICE_ITEM);
+    practice_run(
+        &db,
+        &other_log.evaluator_run_id,
+        PRACTICE_ITEM,
+        "completed",
+        "test",
+        "ACCEPTED",
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+    )
+    .await;
+    db.accept_practice_bundle(
+        &other_session,
+        &other_events,
+        &other_log,
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+        Some("mainmatter-01-intro-01-toolchain"),
+        "mastery-v1",
+    )
+    .await
+    .expect_err("a second run cannot replace accepted evidence");
+}
+
+#[tokio::test]
+async fn final_practice_acceptance_records_completion_without_a_next_item() {
+    let db = Database::open_memory().await.unwrap();
+    let (new_session, events, log) = practice_bundle("FINAL", PRACTICE_ITEM);
+    practice_run(
+        &db,
+        &log.evaluator_run_id,
+        PRACTICE_ITEM,
+        "completed",
+        "test",
+        "ACCEPTED",
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+    )
+    .await;
+    let accepted = db
+        .accept_practice_bundle(
+            &new_session,
+            &events,
+            &log,
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+            None,
+            "mastery-v1",
+        )
+        .await
+        .unwrap();
+    assert!(accepted["unlockedItemId"].is_null());
+}
+
+#[tokio::test]
+async fn practice_acceptance_rejects_missing_foreign_failed_stale_and_tampered_runs() {
+    let db = Database::open_memory().await.unwrap();
+    db.record_support_reveal(LEARNER, PRACTICE_ITEM, "full_reveal", "9400")
+        .await
+        .unwrap();
+    let (missing_session, missing_events, missing_log) = practice_bundle("MISSING", PRACTICE_ITEM);
+    db.accept_practice_bundle(
+        &missing_session,
+        &missing_events,
+        &missing_log,
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+        Some("NEXT"),
+        "mastery-v1",
+    )
+    .await
+    .expect_err("a reveal without an accepted run creates no completion");
+
+    for (suffix, exercise, state, action, status, release, suite) in [
+        (
+            "FOREIGN",
+            "mainmatter-02-basic_calculator-05-factorial",
+            "completed",
+            "test",
+            "ACCEPTED",
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+        ),
+        (
+            "FAILED",
+            PRACTICE_ITEM,
+            "completed",
+            "test",
+            "WRONG_ANSWER",
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+        ),
+        (
+            "ACTION",
+            PRACTICE_ITEM,
+            "completed",
+            "check",
+            "ACCEPTED",
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+        ),
+        (
+            "STALE",
+            PRACTICE_ITEM,
+            "completed",
+            "test",
+            "ACCEPTED",
+            "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            PRACTICE_SUITE,
+        ),
+        (
+            "TAMPERED",
+            PRACTICE_ITEM,
+            "completed",
+            "test",
+            "ACCEPTED",
+            PRACTICE_RELEASE,
+            "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        ),
+    ] {
+        let (new_session, events, log) = practice_bundle(suffix, PRACTICE_ITEM);
+        practice_run(
+            &db,
+            &log.evaluator_run_id,
+            exercise,
+            state,
+            action,
+            status,
+            release,
+            suite,
+        )
+        .await;
+        db.accept_practice_bundle(
+            &new_session,
+            &events,
+            &log,
+            PRACTICE_RELEASE,
+            PRACTICE_SUITE,
+            Some("NEXT"),
+            "mastery-v1",
+        )
+        .await
+        .expect_err("untrusted evaluator evidence must be rejected");
+    }
+    let export = db.portable_export(LEARNER).await.unwrap();
+    assert!(export["payload"]["attempts"].as_array().unwrap().is_empty());
+    assert!(
+        export["payload"]["workbenchCompletions"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn practice_acceptance_rolls_back_completion_when_evidence_projection_fails() {
+    let db = Database::open_memory().await.unwrap();
+    let (new_session, mut events, log) = practice_bundle("ROLLBACK", PRACTICE_ITEM);
+    practice_run(
+        &db,
+        &log.evaluator_run_id,
+        PRACTICE_ITEM,
+        "completed",
+        "test",
+        "ACCEPTED",
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+    )
+    .await;
+    events[0].payload_json = "{}".to_owned();
+    db.accept_practice_bundle(
+        &new_session,
+        &events,
+        &log,
+        PRACTICE_RELEASE,
+        PRACTICE_SUITE,
+        Some("NEXT"),
+        "mastery-v1",
+    )
+    .await
+    .expect_err("projection failure must abort the whole acceptance transaction");
+    let export = db.portable_export(LEARNER).await.unwrap();
+    assert!(export["payload"]["attempts"].as_array().unwrap().is_empty());
+    assert!(export["payload"]["events"].as_array().unwrap().is_empty());
+    assert!(
+        export["payload"]["workbenchCompletions"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+/// A committed recall answer is final: a later different answer returns the
+/// original commitment rather than overwriting it, and the reveal that comes
+/// back is always the one belonging to the answer actually committed.
+#[tokio::test]
+async fn lesson_check_answers_commit_once_and_survive_a_changed_resubmission() {
+    let db = Database::open_memory().await.unwrap();
+    let first = db
+        .commit_lesson_check(
+            LEARNER,
+            "LESSON-BOOK-02",
+            "LESSON-BOOK-02-CHECK-01",
+            1,
+            true,
+            "Reading position only.",
+            "1700000000",
+        )
+        .await
+        .unwrap();
+    assert_eq!(first["correct"], json!(true));
+    assert_eq!(first["alreadyCommitted"], json!(false));
+    assert_eq!(first["explanation"], json!("Reading position only."));
+
+    let retry = db
+        .commit_lesson_check(
+            LEARNER,
+            "LESSON-BOOK-02",
+            "LESSON-BOOK-02-CHECK-01",
+            0,
+            false,
+            "Mastery is not proven by opening a page.",
+            "1700000900",
+        )
+        .await
+        .unwrap();
+    assert_eq!(retry["alreadyCommitted"], json!(true));
+    assert_eq!(retry["chosenIndex"], json!(1), "the first answer stands");
+    assert_eq!(retry["correct"], json!(true));
+    assert_eq!(retry["explanation"], json!("Reading position only."));
+
+    // A different lesson's checks stay separate, and the lesson view restores
+    // exactly the one commitment that belongs to it.
+    db.commit_lesson_check(
+        LEARNER,
+        "LESSON-BOOK-03",
+        "LESSON-BOOK-03-CHECK-01",
+        2,
+        false,
+        "Other lesson.",
+        "1700001000",
+    )
+    .await
+    .unwrap();
+    let restored = db
+        .lesson_check_commitments(LEARNER, "LESSON-BOOK-02")
+        .await
+        .unwrap();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0]["checkId"], json!("LESSON-BOOK-02-CHECK-01"));
+    assert_eq!(restored[0]["chosenIndex"], json!(1));
 }

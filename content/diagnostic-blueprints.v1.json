@@ -22,6 +22,7 @@
             "It does not compile because `x` is declared twice"
           ],
           "answerIndex": 0,
+          "explanation": "The second `let x` shadows the first with the value 6. The `if` condition is therefore true, and because `if` is an expression, `y` receives the string slice `\"big\"`.",
           "justificationRequired": false,
           "profileOnly": false
         },
@@ -38,6 +39,7 @@
             "Recursion over a re-sliced tail"
           ],
           "answerIndex": 1,
+          "explanation": "Borrowing the array with `for item in &array` visits every element exactly once without exposing an index that can drift past the collection boundary.",
           "justificationRequired": false,
           "profileOnly": false
         }
@@ -61,6 +63,7 @@
             "Use nightly everywhere"
           ],
           "answerIndex": 1,
+          "explanation": "Cargo can be affected by directory-specific rustup overrides. Reporting Cargo's verbose version together with rustup's active toolchain identifies the compiler Cargo will actually invoke before any code is changed.",
           "justificationRequired": false,
           "profileOnly": false
         },
@@ -77,6 +80,7 @@
             "A dependency upgrade before reading the diagnostic"
           ],
           "answerIndex": 2,
+          "explanation": "The error code and linked spans describe the violated rule and the values involved, while the smallest reproducing command keeps the hypothesis tied to repeatable local evidence.",
           "justificationRequired": false,
           "profileOnly": false
         }
@@ -95,6 +99,7 @@
           "placementDecision": "ownership_trace_ready",
           "choices": ["Only b", "Only a", "Both a and b", "Neither binding"],
           "answerIndex": 0,
+          "explanation": "`String` is not `Copy`, so assigning `a` to `b` moves ownership of its allocation. `b` remains usable and a later use of `a` is rejected by the compiler.",
           "justificationRequired": false,
           "profileOnly": false
         },
@@ -106,6 +111,7 @@
           "placementDecision": "borrow_boundary_ready",
           "choices": ["String", "&mut String", "Box<String>", "&str"],
           "answerIndex": 3,
+          "explanation": "`&str` grants read-only access to string data without taking ownership or requiring mutability, so the caller can continue using its `String` after the borrow ends.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -122,6 +128,7 @@
             "A global registry for one implementation"
           ],
           "answerIndex": 2,
+          "explanation": "A generic trait bound makes the required operation part of the function's compile-time contract. Unsupported types are rejected before execution without tags, casts, or a runtime registry.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -138,6 +145,7 @@
             "The borrow checker is disabled"
           ],
           "answerIndex": 1,
+          "explanation": "The lifetime parameter connects the returned borrow to the relevant input borrows. It does not extend any value's lifetime; it prevents callers from using the result after its source is invalid.",
           "justificationRequired": false,
           "profileOnly": false
         }
@@ -161,6 +169,7 @@
             "A minimal truncated fixture asserting the typed error and no partial output"
           ],
           "answerIndex": 3,
+          "explanation": "A minimal truncated fixture is discriminating because a plausible partial-parse bug would fail it. Checking the typed error and absence of partial output verifies both the failure classification and the state boundary.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -177,6 +186,7 @@
             "By returning an empty result"
           ],
           "answerIndex": 0,
+          "explanation": "Lower layers should retain a typed cause that callers can inspect. The application boundary has the user and operation context needed to add a useful message without destroying that cause.",
           "justificationRequired": false,
           "profileOnly": false
         }
@@ -200,6 +210,7 @@
             "O(n) auxiliary space"
           ],
           "answerIndex": 2,
+          "explanation": "Visiting each of n elements once gives linear time. A fixed number of counters does not grow with n, so the algorithm uses constant auxiliary space.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -216,6 +227,7 @@
             "Trie"
           ],
           "answerIndex": 1,
+          "explanation": "When validity changes monotonically as a contiguous window expands or shrinks, two monotone boundaries avoid rechecking every range and make the validity invariant explicit.",
           "justificationRequired": true,
           "profileOnly": false
         }
@@ -239,6 +251,7 @@
             "Record transaction boundaries and construct a dependency/history proof"
           ],
           "answerIndex": 3,
+          "explanation": "A transaction-history proof records the ordering and dependency edges needed to distinguish a serialization or isolation anomaly from values merely observed at different times.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -255,6 +268,7 @@
             "A benchmark with no correctness oracle"
           ],
           "answerIndex": 0,
+          "explanation": "Declared grain, keys, and constraints define what each row means; fixtures and schema tests then provide executable evidence that the model preserves those meanings before performance work begins.",
           "justificationRequired": true,
           "profileOnly": false
         }
@@ -278,6 +292,7 @@
             "Keep unbounded state forever"
           ],
           "answerIndex": 1,
+          "explanation": "The design must identify duplicates, define when event time is complete, specify whether emitted results can be revised, and ensure repeated sink writes converge to the same result.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -294,6 +309,7 @@
             "Assume at-most-once delivery"
           ],
           "answerIndex": 2,
+          "explanation": "Crashing exactly between output and checkpoint exposes the ambiguous cut. Replay is safe only when the sink is idempotent or participates in a transaction that aligns output with committed progress.",
           "justificationRequired": true,
           "profileOnly": false
         }
@@ -317,6 +333,7 @@
             "Ask an assistant to rewrite the file without recording support"
           ],
           "answerIndex": 1,
+          "explanation": "A stated hypothesis and discriminating check produce inspectable evidence. Revising from compiler, test, and documentation results keeps help bounded and records what was attempted instead of replacing the reasoning loop.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -333,6 +350,7 @@
             "Rewrite the module from scratch"
           ],
           "answerIndex": 1,
+          "explanation": "The passing sibling is a local control. Comparing its input and path with the failing assertion diff isolates the smallest behavioral difference before an edit introduces additional variables.",
           "justificationRequired": true,
           "profileOnly": false
         },
@@ -344,6 +362,7 @@
           "placementDecision": "profile_context_only",
           "choices": ["Not yet", "Sometimes", "Usually", "Very comfortable"],
           "answerIndex": 3,
+          "explanation": "This is profile context rather than a scored knowledge item. The selected comfort level may tailor support, but it cannot demonstrate or skip a technical outcome.",
           "justificationRequired": false,
           "profileOnly": true
         }

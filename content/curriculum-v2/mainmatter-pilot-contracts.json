@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "pilots": [
+    {
+      "id": "mainmatter-01-intro-00-welcome",
+      "suiteId": "mainmatter-01-intro-00-welcome-pilot-v1",
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_welcome_contract",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_hidden_welcome {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_hidden_welcome_contract() {\n        assert_eq!(greeting(), \"I'm ready to learn Rust!\");\n    }\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_welcome_exact_text",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_regression_welcome {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_regression_welcome_exact_text() {\n        let value = greeting();\n        assert_eq!(value, \"I'm ready to learn Rust!\");\n        assert!(!value.contains(\"__\"));\n    }\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-02-basic_calculator-05-factorial",
+      "suiteId": "mainmatter-02-basic_calculator-05-factorial-pilot-v1",
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_factorial_boundaries",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_hidden_factorial {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_hidden_factorial_boundaries() {\n        assert_eq!(factorial(3), 6);\n        assert_eq!(factorial(4), 24);\n        assert_eq!(factorial(6), 720);\n    }\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_factorial_identity",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_regression_factorial {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_regression_factorial_identity() {\n        assert_eq!(factorial(0), 1);\n        assert_eq!(factorial(1), 1);\n        assert_eq!(factorial(5), 120);\n    }\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-03-ticket_v1-02-validation",
+      "suiteId": "mainmatter-03-ticket-v1-02-validation-pilot-v1",
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_validation_accepts_boundaries",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_hidden_validation {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_hidden_validation_accepts_boundaries() {\n        let ticket = Ticket::new(\"t\".repeat(50), \"d\".repeat(500), \"To-Do\".into());\n        assert_eq!(ticket.title.len(), 50);\n        assert_eq!(ticket.description.len(), 500);\n        assert_eq!(ticket.status, \"To-Do\");\n    }\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_validation_counts_bytes",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_regression_validation {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_regression_validation_counts_bytes() {\n        Ticket::new(\"é\".repeat(25), \"valid\".into(), \"Done\".into());\n        let too_long = std::panic::catch_unwind(|| {\n            Ticket::new(\"é\".repeat(26), \"valid\".into(), \"In Progress\".into());\n        });\n        assert!(too_long.is_err());\n    }\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-04-traits-01-trait",
+      "suiteId": "mainmatter-04-traits-01-trait-pilot-v1",
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_trait_signed_boundaries",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_hidden_trait {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_hidden_trait_signed_boundaries() {\n        assert!(i32::MIN.is_even());\n        assert!(!i32::MAX.is_even());\n        assert!((-42_i32).is_even());\n        assert!(!(-43_i32).is_even());\n    }\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_trait_unsigned_boundaries",
+          "path": "src/lib.rs",
+          "mode": "append",
+          "content": "\n#[cfg(test)]\nmod __rust_tutor_regression_trait {\n    use super::*;\n\n    #[test]\n    fn rust_tutor_regression_trait_unsigned_boundaries() {\n        assert!(0_u32.is_even());\n        assert!((u32::MAX - 1).is_even());\n        assert!(!u32::MAX.is_even());\n    }\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-05-ticket_v2-11-dependencies",
+      "suiteId": "mainmatter-05-ticket-v2-11-dependencies-pilot-v1",
+      "manifestPolicy": {
+        "editable": true,
+        "package": { "name": "deps", "version": "0.1.0", "edition": "2021" },
+        "dependencies": { "anyhow": "1" }
+      },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_anyhow_is_linked",
+          "path": "tests/__rust_tutor_hidden.rs",
+          "mode": "write",
+          "content": "use anyhow::Error;\n\n#[test]\nfn rust_tutor_hidden_anyhow_is_linked() {\n    assert!(std::any::type_name::<Error>().contains(\"anyhow\"));\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_dependency_is_direct",
+          "path": "tests/__rust_tutor_regression.rs",
+          "mode": "write",
+          "content": "#[test]\nfn rust_tutor_regression_dependency_is_direct() {\n    let error = anyhow::anyhow!(\"linked\");\n    assert_eq!(error.to_string(), \"linked\");\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-06-ticket_management-04-iterators",
+      "suiteId": "mainmatter-06-ticket-management-04-iterators-pilot-v1",
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_iterator_preserves_order",
+          "path": "tests/__rust_tutor_hidden.rs",
+          "mode": "write",
+          "content": "use iterators::{Status, Ticket, TicketStore};\nuse ticket_fields::test_helpers::{ticket_description, ticket_title};\n\n#[test]\nfn rust_tutor_hidden_iterator_preserves_order() {\n    let mut store = TicketStore::new();\n    for status in [Status::ToDo, Status::InProgress, Status::Done] {\n        store.add_ticket(Ticket { title: ticket_title(), description: ticket_description(), status });\n    }\n    let statuses: Vec<_> = store.into_iter().map(|ticket| ticket.status).collect();\n    assert_eq!(statuses, [Status::ToDo, Status::InProgress, Status::Done]);\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_empty_iterator",
+          "path": "tests/__rust_tutor_regression.rs",
+          "mode": "write",
+          "content": "use iterators::TicketStore;\n\n#[test]\nfn rust_tutor_regression_empty_iterator() {\n    assert_eq!(TicketStore::new().into_iter().count(), 0);\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-07-threads-12-rw-lock",
+      "suiteId": "mainmatter-07-threads-12-rw-lock-pilot-v1",
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_rwlock_allows_two_readers",
+          "path": "tests/__rust_tutor_hidden.rs",
+          "mode": "write",
+          "content": "use rwlock::data::TicketDraft;\nuse rwlock::launch;\nuse ticket_fields::test_helpers::{ticket_description, ticket_title};\n\n#[test]\nfn rust_tutor_hidden_rwlock_allows_two_readers() {\n    let client = launch(5);\n    let id = client.insert(TicketDraft { title: ticket_title(), description: ticket_description() }).unwrap();\n    let ticket = client.get(id).unwrap().unwrap();\n    let first = ticket.read().unwrap();\n    let second = ticket.try_read().expect(\"a read lock must not exclude another reader\");\n    assert_eq!(first.id, second.id);\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_rwlock_write_after_read",
+          "path": "tests/__rust_tutor_regression.rs",
+          "mode": "write",
+          "content": "use rwlock::data::{Status, TicketDraft};\nuse rwlock::launch;\nuse ticket_fields::test_helpers::{ticket_description, ticket_title};\n\n#[test]\nfn rust_tutor_regression_rwlock_write_after_read() {\n    let client = launch(5);\n    let id = client.insert(TicketDraft { title: ticket_title(), description: ticket_description() }).unwrap();\n    let ticket = client.get(id).unwrap().unwrap();\n    { assert_eq!(ticket.read().unwrap().status, Status::ToDo); }\n    ticket.write().unwrap().status = Status::Done;\n    assert_eq!(ticket.read().unwrap().status, Status::Done);\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "mainmatter-08-futures-07-cancellation",
+      "suiteId": "mainmatter-08-futures-07-cancellation-pilot-v1",
+      "runtimePolicy": { "loopback": true },
+      "manifestPolicy": { "editable": false, "dependencies": {} },
+      "hidden": [
+        {
+          "name": "rust_tutor_hidden_cancellation_keeps_partial_bytes",
+          "path": "tests/__rust_tutor_hidden.rs",
+          "mode": "write",
+          "content": "use cancellation::run;\nuse std::time::Duration;\nuse tokio::io::AsyncWriteExt;\nuse tokio::net::{TcpListener, TcpStream};\n\n#[tokio::test]\nasync fn rust_tutor_hidden_cancellation_keeps_partial_bytes() {\n    let listener = TcpListener::bind(\"127.0.0.1:0\").await.unwrap();\n    let address = listener.local_addr().unwrap();\n    let handle = tokio::spawn(run(listener, 1, Duration::from_millis(40)));\n    let mut stream = TcpStream::connect(address).await.unwrap();\n    stream.write_all(b\"partial\").await.unwrap();\n    tokio::time::sleep(Duration::from_millis(100)).await;\n    let buffered = handle.await.unwrap();\n    assert_eq!(buffered, b\"partial\");\n}\n"
+        }
+      ],
+      "regression": [
+        {
+          "name": "rust_tutor_regression_zero_messages_returns",
+          "path": "tests/__rust_tutor_regression.rs",
+          "mode": "write",
+          "content": "use cancellation::run;\nuse std::time::Duration;\nuse tokio::net::TcpListener;\n\n#[tokio::test]\nasync fn rust_tutor_regression_zero_messages_returns() {\n    let listener = TcpListener::bind(\"127.0.0.1:0\").await.unwrap();\n    let buffered = run(listener, 0, Duration::from_millis(1)).await;\n    assert!(buffered.is_empty());\n}\n"
+        }
+      ]
+    }
+  ]
+}

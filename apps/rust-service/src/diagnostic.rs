@@ -34,6 +34,8 @@ pub struct DiagnosticItem {
     pub choices: Vec<String>,
     #[serde(skip_serializing)]
     pub answer_index: usize,
+    #[serde(skip_serializing)]
+    pub explanation: String,
     pub justification_required: bool,
     pub profile_only: bool,
 }
@@ -71,6 +73,7 @@ pub struct ItemPlacement {
     pub accessibility_bypass: bool,
     pub decision: String,
     pub justification_recorded: bool,
+    pub feedback: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -135,6 +138,7 @@ impl DiagnosticBlueprints {
                 if !ids.insert(item.id.as_str())
                     || item.choices.len() < 2
                     || item.answer_index >= item.choices.len()
+                    || item.explanation.trim().len() < 40
                     || graph.node(&item.outcome_id).is_none()
                 {
                     return Err(format!("{} has an invalid diagnostic contract", item.id));
@@ -210,6 +214,7 @@ impl DiagnosticBlueprints {
                     decision: item.placement_decision.clone(),
                     justification_recorded: answer
                         .is_some_and(|answer| !answer.justification.trim().is_empty()),
+                    feedback: item.explanation.clone(),
                 };
                 if item.profile_only {
                     profile_context.push(placement);

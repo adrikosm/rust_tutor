@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { lazy, Suspense, useState } from "react";
+import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
 import { ThemeControl } from "../../app/theme";
 import {
   acceptWorkbenchItem,
@@ -21,6 +21,7 @@ import {
   getFinalExam,
   getGraph,
   getJournal,
+  getPracticeItem,
   getWorkbenchProgress,
   type LabReport,
   openFinalExam,
@@ -33,6 +34,54 @@ import {
 } from "../../lib/service-client";
 
 import { PageHero, statusLabel } from "./LearningShared";
+
+// Renders the authored prompt (headings, bullets, fenced spans) without a
+// markdown dependency: the generator only emits `### `, `**bold**` lines,
+// `- ` bullets, `---` rules, and `` `code` `` spans.
+function PromptProse({ text }: { text: string }) {
+  const blocks: ReactNode[] = [];
+  let bullets: string[] = [];
+  const flush = (key: string) => {
+    if (bullets.length === 0) return;
+    blocks.push(
+      <ul key={key}>
+        {bullets.map((item) => (
+          <li key={item}>{inlineProse(item)}</li>
+        ))}
+      </ul>,
+    );
+    bullets = [];
+  };
+  text.split("\n").forEach((line, index) => {
+    const key = `line-${index}`;
+    if (line.startsWith("- ")) {
+      bullets.push(line.slice(2));
+      return;
+    }
+    flush(`${key}-list`);
+    if (line.trim() === "") return;
+    if (line.startsWith("---")) blocks.push(<hr key={key} />);
+    else if (line.startsWith("### ")) blocks.push(<h3 key={key}>{line.slice(4)}</h3>);
+    else blocks.push(<p key={key}>{inlineProse(line)}</p>);
+  });
+  flush("tail-list");
+  return <div className="prompt-prose">{blocks}</div>;
+}
+
+function inlineProse(line: string) {
+  return line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((part, index) => {
+    const key = `${index}-${part}`;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 1)
+      return <code key={key}>{part.slice(1, -1)}</code>;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 3)
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    return <span key={key}>{part}</span>;
+  });
+}
+
+function hintText(hint: string | { text: string }) {
+  return typeof hint === "string" ? hint : hint.text;
+}
 
 const ALGORITHM_WORKSHEET = [
   "Restate the input/output contract and edge cases",
@@ -53,6 +102,14 @@ const MonacoSourceEditor = lazy(() =>
 );
 
 export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
+  // The route keeps this component mounted when $problemId changes, so the
+  // draft, the hint rung, and the worksheet answers would all follow the
+  // learner onto the next problem. Keying the body on the id retires them
+  // with the problem they belong to.
+  return <AlgorithmProblem key={problemId} problemId={problemId} />;
+}
+
+function AlgorithmProblem({ problemId }: { problemId: string }) {
   const queryClient = useQueryClient();
   const graph = useQuery({
     queryKey: ["algorithm-problem", problemId],
@@ -66,9 +123,23 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
     queryKey: ["catalog", "algorithm-problem", problemId],
     queryFn: () => getCatalog("exercise", problemId, 1),
   });
+  // The reviewed exercise contract carries the prompt, constraints, visible
+  // test, hint ladder, complexity target, and the editable-file allowlist the
+  // evaluator enforces. Without it the console would post the wrong path.
+  const exercise = useQuery({
+    queryKey: ["practice-item", problemId],
+    queryFn: () => getPracticeItem(problemId),
+    retry: false,
+  });
+  const item = exercise.data?.item;
   const runnable =
-    catalogEntry.data?.records.find((record) => record.id === problemId)?.runnable ?? false;
+    item?.runnable ??
+    catalogEntry.data?.records.find((record) => record.id === problemId)?.runnable ??
+    false;
   const problem = graph.data?.nodes.find((node) => node.id === problemId);
+  const starterFile = item?.starter?.files?.[0];
+  const editablePath = starterFile?.path ?? "src/main.rs";
+  const [revealedHints, setRevealedHints] = useState(0);
   const progress = useQuery({ queryKey: ["workbench-progress"], queryFn: getWorkbenchProgress });
   const [worksheet, setWorksheet] = useState<Record<number, string>>({});
   const [source, setSource] = useState(() =>
@@ -77,6 +148,15 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
       : 'fn solve(input: &[i64]) -> i64 {\n    // implement your invariant\n    0\n}\n\nfn main() {\n    println!("{}", solve(&[]));\n}\n',
   );
   const [sourceVersion, setSourceVersion] = useState(1);
+  const [starterLoaded, setStarterLoaded] = useState(false);
+  useEffect(() => {
+    if (!starterFile || starterLoaded) return;
+    // Seed once from the reviewed starter so the learner edits the same file
+    // the evaluator will accept, then never clobber their draft again.
+    setStarterLoaded(true);
+    setSource(starterFile.content);
+    setSourceVersion((version) => version + 1);
+  }, [starterFile, starterLoaded]);
   const [customInput, setCustomInput] = useState("");
   const [customExpected, setCustomExpected] = useState("");
   const [bookmarkUrl, setBookmarkUrl] = useState("");
@@ -96,6 +176,7 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
           exerciseId: problemId,
           action,
           source,
+          files: { [editablePath]: source },
           contentHash,
           case:
             action === "run" && (customInput || customExpected)
@@ -134,11 +215,20 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
       <header className="practice-lab__header">
         <Link to="/practice">← Practice</Link>
         <p>{problemId}</p>
-        <h1>{problem?.title ?? "Loading reviewed problem…"}</h1>
+        <h1>{item?.title ?? problem?.title ?? "Loading reviewed problem…"}</h1>
         <p>
-          {problem?.summary ??
+          {problem?.summary ||
+            item?.whyNow ||
             "This prompt is local and reviewable; no proprietary external statement or tests are fetched."}
         </p>
+        {item && (
+          <ul className="practice-lab__facts">
+            {item.pattern && <li>{item.pattern}</li>}
+            <li>{statusLabel(item.difficulty)}</li>
+            {item.complexity && <li>Target {item.complexity}</li>}
+            <li>~{item.estimateMinutes} min</li>
+          </ul>
+        )}
       </header>
 
       <div className="practice-lab__split">
@@ -146,8 +236,60 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
           <div>
             <p className="eyebrow">Solve the contract</p>
             <h2>Start with a correct invariant. Optimize only after it holds.</h2>
-            <p>{problem?.summary}</p>
+            {exercise.isPending && <p role="status">Loading the reviewed problem statement…</p>}
+            {item?.prompt ? <PromptProse text={item.prompt} /> : <p>{problem?.summary}</p>}
           </div>
+          {item && item.constraints.length > 0 && (
+            <section className="practice-brief__block">
+              <h3>Constraints</h3>
+              <ul>
+                {item.constraints.map((constraint) => (
+                  <li key={constraint}>{constraint}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {item && (item.tests?.visible?.length ?? 0) > 0 && (
+            <details className="practice-brief__block">
+              <summary>Visible contract test</summary>
+              {item.tests?.visible.map((test) => (
+                <pre key={test.path ?? test.name}>
+                  <code>{test.content}</code>
+                </pre>
+              ))}
+            </details>
+          )}
+          {item && item.hints.length > 0 && (
+            <section className="practice-brief__block algorithm-hints">
+              <h3>
+                Hint ladder{" "}
+                <span>
+                  {revealedHints}/{item.hints.length}
+                </span>
+              </h3>
+              <p>Each rung costs a little independence. Try the next idea first.</p>
+              <ol>
+                {item.hints.slice(0, revealedHints).map((hint) => (
+                  <li key={hintText(hint)}>{inlineProse(hintText(hint))}</li>
+                ))}
+              </ol>
+              {revealedHints < item.hints.length && (
+                <button type="button" onClick={() => setRevealedHints((count) => count + 1)}>
+                  Reveal hint {revealedHints + 1}
+                </button>
+              )}
+            </section>
+          )}
+          {item && item.commonMistakes.length > 0 && (
+            <details className="practice-brief__block">
+              <summary>Traps this pattern sets</summary>
+              <ul>
+                {item.commonMistakes.map((mistake) => (
+                  <li key={mistake}>{mistake}</li>
+                ))}
+              </ul>
+            </details>
+          )}
           <details className="algorithm-strategy">
             <summary>
               Reasoning worksheet <span>optional</span>
@@ -208,7 +350,7 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
             <div>
               <span className="practice-console__status" aria-hidden="true" />
               <div>
-                <h2 id="algorithm-editor-title">src/main.rs</h2>
+                <h2 id="algorithm-editor-title">{editablePath}</h2>
                 <p>Original local interview problem</p>
               </div>
             </div>
@@ -233,7 +375,7 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
           <Suspense fallback={<p className="practice-console__loading">Loading code editor…</p>}>
             <MonacoSourceEditor
               exerciseId={problemId}
-              filePath="src/main.rs"
+              filePath={editablePath}
               source={source}
               sourceVersion={sourceVersion}
               autocompleteEnabled={bootstrap.data?.toolchain.rust_analyzer ?? false}
@@ -273,7 +415,14 @@ export function AlgorithmProblemPage({ problemId }: { problemId: string }) {
               </pre>
             )}
             {acceptance.error && <p role="alert">{acceptance.error.message}</p>}
-            {acceptance.data && <p>Accepted. Unlocked {acceptance.data.unlockedItemId}.</p>}
+            {acceptance.data && (
+              <p>
+                Accepted.
+                {acceptance.data.unlockedItemId
+                  ? ` Unlocked ${acceptance.data.unlockedItemId}.`
+                  : " This is the final item in the track."}
+              </p>
+            )}
           </section>
           <details className="practice-console__more">
             <summary>Run options and history</summary>
@@ -1386,6 +1535,50 @@ export function AboutPage() {
             </dd>
           </div>
         </dl>
+        {about.data && (
+          <>
+            <p className="credits-licenses__notice" role="note">
+              <strong>Bundled curriculum: noncommercial.</strong>{" "}
+              {about.data.contentLicensing.notice}
+            </p>
+            <table className="credits-licenses__pins">
+              <caption>Exactly what this build bundles, and the commit it is pinned to</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Source</th>
+                  <th scope="col">License</th>
+                  <th scope="col">Use</th>
+                  <th scope="col">Pinned at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {about.data.contentLicensing.sources.map((source) => (
+                  <tr key={source.id}>
+                    <th scope="row">
+                      <a href={source.canonicalUrl} target="_blank" rel="noreferrer">
+                        {source.title}
+                      </a>
+                      <small>{source.attribution}</small>
+                    </th>
+                    <td>
+                      {source.licenseUrl ? (
+                        <a href={source.licenseUrl} target="_blank" rel="noreferrer">
+                          {source.license}
+                        </a>
+                      ) : (
+                        source.license
+                      )}
+                    </td>
+                    <td>{source.use}</td>
+                    <td>
+                      <code>{source.sourceCommit?.slice(0, 12) ?? "—"}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </section>
     </>
   );

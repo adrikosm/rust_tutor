@@ -1,14 +1,92 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { patternGuides, patternVariants } from "./interview-bank.mjs";
+import { furtherReadingFor, libraryCatalog } from "./reference-library.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const contentDir = resolve(root, "content/curriculum-v2");
 const releasePath = resolve(contentDir, "release.json");
+const rustBookPath = resolve(contentDir, "rust-book.json");
+const mainmatterDocumentsPath = resolve(contentDir, "mainmatter-documents.json");
+const sourceManifestPath = resolve(contentDir, "source-manifest.json");
+const knowledgeMappingsPath = resolve(contentDir, "knowledge-mappings.json");
+const knowledgeExtensionPath = resolve(contentDir, "knowledge-extension.json");
+const mainmatterPilotContractsPath = resolve(contentDir, "mainmatter-pilot-contracts.json");
+const canonicalGraphPath = resolve(root, "knowledge/feed/generated/tutor-feed.json");
+const libraryPath = resolve(root, "apps/web/src/data/reference-library.json");
 const importedAt = "2026-07-22";
+const rustBookCommit = "05d114287b7d6f6c9253d5242540f00fbd6172ab";
+const mainmatterStarterCommit = "57d145e6d393dfffeadb97fc61e814255c3b6ffe";
+const mainmatterSolutionCommit = "e77613749a55c19c63cf78e3b30cafc007f53dab";
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const canonicalTreeHashAlgorithm = "sha256(canonical-json[path,byteLength,sha256]-v1)";
+
+export function canonicalTreeSha256(files, label) {
+  const entries = files
+    .map((file) => {
+      if (typeof file?.path !== "string" || typeof file?.content !== "string")
+        throw new Error(`${label}: snapshot file needs path and content`);
+      const actual = sha256(file.content);
+      if (file.sha256 !== actual)
+        throw new Error(`${label}: ${file.path} SHA-256 differs from its bytes`);
+      return { path: file.path, byteLength: Buffer.byteLength(file.content), sha256: actual };
+    })
+    // Canonical paths are ordered by their UTF-8 bytes. Buffer.compare is
+    // locale-independent, so the same tree has the same hash on every host.
+    .sort((left, right) =>
+      Buffer.compare(Buffer.from(left.path, "utf8"), Buffer.from(right.path, "utf8")),
+    );
+  if (new Set(entries.map((entry) => entry.path)).size !== entries.length)
+    throw new Error(`${label}: duplicate snapshot path`);
+  return sha256(JSON.stringify(entries));
+}
+
+export function mainmatterIntegrity(raw) {
+  const packageHashes = new Map();
+  for (const exercise of raw.exercises ?? []) {
+    const sourceLessonHash = sha256(exercise.sourceLesson?.markdown ?? "");
+    if (exercise.sourceLesson?.sha256 !== sourceLessonHash)
+      throw new Error(`${exercise.id}: source lesson SHA-256 differs from its bytes`);
+    const manifest = exercise.starter?.manifest;
+    const starterFiles = [manifest, ...(exercise.starter?.files ?? [])];
+    const solutionFiles = exercise.referenceSolution?.files ?? [];
+    packageHashes.set(exercise.id, {
+      starterPackageSha256: canonicalTreeSha256(starterFiles, `${exercise.id}.starter`),
+      solutionPackageSha256: canonicalTreeSha256(solutionFiles, `${exercise.id}.solution`),
+    });
+  }
+  const starterSharedFiles = raw.sharedWorkspaceFiles ?? [];
+  const solutionOverrides = new Map(
+    mainmatterSolutionWorkspaceOverrides.map((file) => [file.path, file]),
+  );
+  const solutionSharedFiles = starterSharedFiles.map((file) => {
+    const override = solutionOverrides.get(file.path);
+    if (!override) return file;
+    solutionOverrides.delete(file.path);
+    return { ...override, sha256: sha256(override.content) };
+  });
+  for (const override of solutionOverrides.values())
+    solutionSharedFiles.push({ ...override, sha256: sha256(override.content) });
+  return {
+    algorithm: canonicalTreeHashAlgorithm,
+    starterSharedWorkspaceSha256: canonicalTreeSha256(
+      starterSharedFiles,
+      "Mainmatter starter shared workspace",
+    ),
+    solutionSharedWorkspaceSha256: canonicalTreeSha256(
+      solutionSharedFiles,
+      "Mainmatter solution shared workspace",
+    ),
+    packageHashes,
+  };
+}
 
 const bookChapters = [
   [
@@ -279,7 +357,7 @@ const sources = [
     title: "The Rust Programming Language",
     publisher: "The Rust Project Developers",
     canonicalUrl: "https://doc.rust-lang.org/book/",
-    snapshot: "stable documentation retrieved 2026-07-22; Rust 1.90+, edition 2024",
+    snapshot: `commit ${rustBookCommit}; stable Rust 1.97.1; edition 2024`,
     license: "MIT OR Apache-2.0",
     attribution: "Copyright The Rust Project Developers; adapted under the MIT license.",
     use: "adapted",
@@ -289,8 +367,7 @@ const sources = [
     title: "100 Exercises To Learn Rust",
     publisher: "Mainmatter",
     canonicalUrl: "https://github.com/mainmatter/100-exercises-to-learn-rust",
-    snapshot:
-      "starter 57d145e6d393dfffeadb97fc61e814255c3b6ffe; solutions e77613749a55c19c63cf78e3b30cafc007f53dab",
+    snapshot: `starter ${mainmatterStarterCommit}; solutions ${mainmatterSolutionCommit}`,
     license: "CC-BY-NC-4.0",
     attribution:
       "Mainmatter's 100 Exercises To Learn Rust, adapted with changes; no endorsement implied.",
@@ -316,7 +393,11 @@ const mainmatterSolutionWorkspaceOverrides = [
   },
 ];
 
-function makeBook() {
+function makeBook(rustBookDocuments, knowledgeMappings) {
+  const pageByPath = new Map(rustBookDocuments.pages.map((page) => [page.sourcePath, page]));
+  const mappingByPath = new Map(
+    knowledgeMappings.bookPages.map((mapping) => [mapping.sourcePath, mapping]),
+  );
   const aliases = Object.fromEntries(
     legacyAliases.map(([old, n, section]) => [old, sectionLessonId(n, section)]),
   );
@@ -332,21 +413,12 @@ function makeBook() {
       summary,
       lessonIds: sectionIds,
       sourceIds: ["SRC-RUST-BOOK-STABLE"],
-      prerequisiteModuleIds: number === 1 ? [] : [moduleId(number - 1)],
+      prerequisiteModuleIds: [],
     });
     sections.forEach((section, index) => {
       const sectionNumber = index + 1;
       const id = sectionLessonId(number, sectionNumber);
       const checkId = `${id}-CHECK-01`;
-      const previousId =
-        sectionNumber > 1
-          ? sectionLessonId(number, sectionNumber - 1)
-          : number > 1
-            ? bookSections
-                .filter((candidate) => candidate.chapter === number - 1)
-                .map((_, i) => sectionLessonId(number - 1, i + 1))
-                .at(-1)
-            : null;
       const sectionSummary = `${section.title} turns the ${title} chapter model into a focused skill: ${summary}`;
       lessons.push({
         id,
@@ -364,7 +436,7 @@ function makeBook() {
           `Write and run a focused Rust example that uses ${terms.slice(0, 2).join(" and ")} at an explicit boundary.`,
           `Diagnose one compiler or runtime failure by naming the contract it violates.`,
         ],
-        prerequisiteIds: previousId ? [previousId] : [],
+        prerequisiteIds: [],
         mentalModel: `${model} In this section, use that model specifically to reason about ${section.title.toLowerCase()} before changing code.`,
         keyTerms: terms.map((term, i) => ({
           term,
@@ -413,8 +485,7 @@ function makeBook() {
               "Add an abstraction before a failing case exists",
             ],
             answerIndex: 1,
-            explanation:
-              "Prediction plus executable evidence tests the model; recognition alone does not.",
+            explanation: `${section.title} is demonstrated by predicting the relevant ${terms[0]} behavior, implementing the smallest boundary that preserves it, and checking the observable result. Recognizing syntax without that evidence does not establish the model.`,
           },
         ],
         terminalWork: {
@@ -435,6 +506,7 @@ function makeBook() {
           "Prefer a small executable proof over a large untested explanation.",
         ],
         sourceIds: ["SRC-RUST-BOOK-STABLE"],
+        furtherReading: furtherReadingFor(number),
         sectionSources: [
           {
             title: `Chapter ${number}: ${section.title}`,
@@ -450,7 +522,307 @@ function makeBook() {
       });
     });
   }
+  const existingById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+  const sourcePathFor = (lesson) =>
+    `src/${new URL(lesson.sectionSources[0].url).pathname
+      .split("/")
+      .at(-1)
+      .replace(/\.html$/, ".md")}`;
+  for (const lesson of lessons) {
+    const sourcePath = sourcePathFor(lesson);
+    const mapping = mappingByPath.get(sourcePath);
+    const page = pageByPath.get(sourcePath);
+    if (!mapping || !page || mapping.pageId !== lesson.id)
+      throw new Error(`${lesson.id}: missing or mismatched Book knowledge mapping`);
+    Object.assign(
+      lesson,
+      mappedBookFields(mapping, page, knowledgeMappings.bookPages),
+      sourceGroundedBookFields(mapping, page),
+    );
+  }
+
+  modules.unshift({
+    id: "MOD-BOOK-INTRO",
+    number: 0,
+    title: "Introduction",
+    summary:
+      "Orient to the complete Rust Book, its audience, its toolchain assumptions, and the evidence-first way this track links reading to practice.",
+    lessonIds: ["LESSON-BOOK-INTRO"],
+    sourceIds: ["SRC-RUST-BOOK-STABLE"],
+    prerequisiteModuleIds: [],
+  });
+  modules.push({
+    id: "MOD-BOOK-APPENDICES",
+    number: 22,
+    title: "Appendices",
+    summary:
+      "Use the Book appendices as reviewed references for language vocabulary, operators, derivable traits, tools, editions, translations, and Rust release channels.",
+    lessonIds: knowledgeMappings.bookPages
+      .filter((mapping) => mapping.containerId === "MOD-BOOK-APPENDICES")
+      .map((mapping) => mapping.pageId),
+    sourceIds: ["SRC-RUST-BOOK-STABLE"],
+    prerequisiteModuleIds: [],
+  });
+
+  for (const mapping of knowledgeMappings.bookPages) {
+    if (existingById.has(mapping.pageId)) continue;
+    const page = pageByPath.get(mapping.sourcePath);
+    if (!page) throw new Error(`${mapping.pageId}: mapped Book source page is missing`);
+    const lesson = makeContextPageLesson(mapping, page, knowledgeMappings.bookPages);
+    lessons.push(lesson);
+    existingById.set(lesson.id, lesson);
+    const module = modules.find((candidate) => candidate.id === mapping.containerId);
+    if (!module) throw new Error(`${mapping.pageId}: mapped Book container is missing`);
+    if (!module.lessonIds.includes(mapping.pageId)) module.lessonIds.unshift(mapping.pageId);
+  }
+  lessons.sort((left, right) => left.pageSequence - right.pageSequence);
+  for (const module of modules) {
+    module.lessonIds.sort(
+      (left, right) => existingById.get(left).pageSequence - existingById.get(right).pageSequence,
+    );
+  }
   return { aliases, modules, lessons };
+}
+
+// The typed page blocks live in the pinned rust-book.json artifact. Embedding
+// the public projection here keeps one release checksum covering everything the
+// Book track renders, and matches how Mainmatter exercises carry sourceDocument.
+function bookSourceDocument(page) {
+  return {
+    pageId: page.id,
+    title: page.title,
+    sourcePath: page.sourcePath,
+    sourceCommit: page.sourceCommit,
+    canonicalUrl: page.canonicalUrl,
+    sha256: page.sha256,
+    resolvedSha256: page.resolvedSha256,
+    license: page.license,
+    attribution: page.attribution,
+    changeNotes: page.changeNotes,
+    headings: page.headings,
+    blocks: page.blocks,
+  };
+}
+
+function blockText(node) {
+  return node?.type === "text" ? (node.text ?? "") : (node?.children ?? []).map(blockText).join("");
+}
+
+function firstCodeBlock(nodes) {
+  for (const node of nodes ?? []) {
+    if (node.type === "codeBlock") return node;
+    const nested = firstCodeBlock(node.children);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function sourceGroundedBookFields(mapping, page) {
+  const [concept, outcome = concept] = mapping.endpointRationales;
+  if (!concept?.capabilityDefinition || !outcome?.capabilityDefinition)
+    throw new Error(`${mapping.pageId}: reviewed endpoint definitions are missing`);
+  const excerpt = mapping.evidence.sourceExcerpt.replace(/\s+/gu, " ").trim();
+  const boundary = concept.evidenceBoundary;
+  const example = firstCodeBlock(page.blocks);
+  const exampleText = example ? blockText(example).trimEnd() : excerpt;
+  const exampleKind = example
+    ? `${example.attributes?.classification ?? "display"} ${example.attributes?.info ?? "source"} block`
+    : "reviewed prose excerpt";
+  const checkId = `${mapping.pageId}-CHECK-01`;
+  return {
+    summary: `${page.title} develops this reviewed capability: ${concept.capabilityDefinition}`,
+    objectives: [
+      `Explain this technical model: ${concept.capabilityDefinition}`,
+      `Demonstrate this observable outcome: ${outcome.capabilityDefinition}`,
+      "Distinguish reading the source from producing evidence that the outcome was achieved.",
+    ],
+    mentalModel: `Core model: ${concept.capabilityDefinition} Evidence limit: ${boundary}`,
+    keyTerms: [
+      { term: page.title, definition: excerpt },
+      { term: "Concept boundary", definition: concept.capabilityDefinition },
+      { term: "Observable evidence", definition: outcome.capabilityDefinition },
+    ],
+    syntaxExamples: [
+      {
+        title: example ? "First code example in the pinned page" : "Pinned source excerpt",
+        code: exampleText,
+        explanation: `This is a ${exampleKind} from the pinned page, presented in source context rather than relabelled as a generic runnable exercise. It supports the reviewed concept: ${concept.capabilityDefinition}`,
+      },
+    ],
+    workedTrace: [
+      { step: 1, state: "Read the cited passage", explanation: excerpt },
+      {
+        step: 2,
+        state: "State the technical boundary",
+        explanation: concept.capabilityDefinition,
+      },
+      {
+        step: 3,
+        state: "Name acceptable evidence",
+        explanation: `${outcome.capabilityDefinition} Merely opening the page does not establish that outcome.`,
+      },
+    ],
+    misconceptions: [
+      {
+        symptom: `Treating ${page.title} as proof of a nearby behavior that its reviewed source mapping does not establish.`,
+        explanation: `${boundary} The reviewed model is: ${concept.capabilityDefinition}`,
+        repair: `Use the observable outcome instead: ${outcome.capabilityDefinition}`,
+      },
+    ],
+    recallChecks: [
+      {
+        id: checkId,
+        prompt: `Which statement captures the reviewed technical model for ${page.title}?`,
+        options: [
+          concept.capabilityDefinition,
+          `${page.title} is only a vocabulary lookup; no behavior or decision needs verification.`,
+          `Opening ${page.title} is sufficient evidence that its learning outcome has been achieved.`,
+        ],
+        answerIndex: 0,
+        explanation: `For ${page.title}, the reviewed concept is: ${concept.capabilityDefinition} The observable outcome is: ${outcome.capabilityDefinition} Reading supplies context, but the outcome still needs committed or executable evidence.`,
+      },
+    ],
+    terminalWork: {
+      files: [],
+      command: "",
+      instructions:
+        "This source page has no synthetic workbench. Use its linked reviewed exercise when executable evidence is available.",
+    },
+    recap: [
+      concept.capabilityDefinition,
+      outcome.capabilityDefinition,
+      `Evidence boundary: ${boundary}`,
+    ],
+  };
+}
+
+function mappedBookFields(mapping, page, orderedMappings) {
+  const index = orderedMappings.findIndex((candidate) => candidate.pageId === mapping.pageId);
+  return {
+    pageSequence: page.sequence,
+    pageRole:
+      mapping.pageId.endsWith("-00") && mapping.pageId !== "LESSON-BOOK-02"
+        ? "context"
+        : mapping.containerId === "MOD-BOOK-APPENDICES"
+          ? "reference"
+          : "lesson",
+    sourceDocumentId: page.id,
+    sourcePath: page.sourcePath,
+    canonicalUrl: page.canonicalUrl,
+    sourceSha256: page.sha256,
+    previousPageId: orderedMappings[index - 1]?.pageId ?? null,
+    nextPageId: orderedMappings[index + 1]?.pageId ?? null,
+    sourceDocument: bookSourceDocument(page),
+    conceptIds: mapping.conceptIds,
+    outcomeIds: mapping.outcomeIds,
+    mappingRationale: mapping.rationale,
+    mappingSource: mapping.mappingSource,
+  };
+}
+
+function makeContextPageLesson(mapping, page, orderedMappings) {
+  const fields = mappedBookFields(mapping, page, orderedMappings);
+  const checkId = `${mapping.pageId}-CHECK-01`;
+  const contextual = fields.pageRole === "context";
+  return {
+    id: mapping.pageId,
+    moduleId: mapping.containerId,
+    title: page.title,
+    slug: `book-${String(page.sequence).padStart(3, "0")}-${slug(page.title)}`,
+    aliases: [],
+    summary: `${page.title} preserves the pinned Rust Book page and places it in the complete track with reviewed concept and outcome links.`,
+    estimateMinutes: contextual ? 8 : 20,
+    difficulty: page.sequence < 39 ? "beginner" : page.sequence < 84 ? "intermediate" : "advanced",
+    objectives: [
+      `Locate ${page.title.toLowerCase()} in the complete Rust Book sequence and state its purpose.`,
+      "Connect the source page to the reviewed Rust concepts and observable outcomes without treating display order as a prerequisite.",
+    ],
+    prerequisiteIds: [],
+    mentalModel:
+      "This page is source material first: its position supports navigation, while explicit knowledge-graph edges alone determine prerequisites and evidence relationships.",
+    keyTerms: [
+      {
+        term: "source page",
+        definition: "A byte-verified document from the pinned Rust Book snapshot.",
+      },
+      {
+        term: "display order",
+        definition: "The previous/next reading sequence, separate from prerequisite closure.",
+      },
+      {
+        term: "evidence",
+        definition: "An observable check or exercise result, never a page-open event.",
+      },
+    ],
+    syntaxExamples: [
+      {
+        title: "Pinned source document",
+        code: `// Read source document ${page.id}; code blocks remain in its typed block stream.`,
+        explanation:
+          "The typed source document is rendered separately; this pointer does not rewrite or omit its code.",
+      },
+    ],
+    workedTrace: [
+      {
+        step: 1,
+        state: "Open the source",
+        explanation: "Read the pinned page in its original document order.",
+      },
+      {
+        step: 2,
+        state: "Name the model",
+        explanation: "Use the reviewed concept links to name what the page explains.",
+      },
+      {
+        step: 3,
+        state: "Choose evidence",
+        explanation:
+          "Follow an explicit outcome or practice edge when active recall is appropriate.",
+      },
+    ],
+    misconceptions: [
+      {
+        symptom: "Treating the previous page as a mandatory knowledge prerequisite.",
+        explanation:
+          "Book order is useful navigation but does not prove a prerequisite relationship.",
+        repair: "Use only prerequisite_of edges when computing readiness or closure.",
+      },
+    ],
+    recallChecks: [
+      {
+        id: checkId,
+        prompt: `What does opening ${page.title} prove?`,
+        options: ["Mastery", "Reading position only", "Exercise completion"],
+        answerIndex: 1,
+        explanation: `${page.title} is contextual source material, so opening it records where the learner read. Mastery still requires a committed check or executable exercise mapped to an observable outcome.`,
+      },
+    ],
+    terminalWork: {
+      files: [
+        {
+          path: "src/lib.rs",
+          content: "// Choose a linked practice item when executable evidence is needed.\n",
+        },
+      ],
+      command: "cargo test --offline",
+      instructions:
+        "Use a linked reviewed exercise instead of manufacturing a runnable workspace from a context or reference page.",
+    },
+    practiceBridge: [],
+    projectTransfer: [],
+    recap: [
+      "The original page remains the source of truth.",
+      "Display order and prerequisites are different graph relationships.",
+      "Reading, exercise completion, and mastery remain separate states.",
+    ],
+    sourceIds: ["SRC-RUST-BOOK-STABLE"],
+    furtherReading: furtherReadingFor(Math.max(1, Math.min(21, Math.ceil(page.sequence / 5)))),
+    sectionSources: [{ title: page.title, url: page.canonicalUrl }],
+    completion: { requiredCheckIds: contextual ? [] : [checkId], requiredExerciseIds: [] },
+    review: { status: "reviewed", reviewedAt: importedAt, reviewer: "Rust Tutor mapping review" },
+    ...fields,
+    ...sourceGroundedBookFields(mapping, page),
+  };
 }
 
 const patternDefinitions = [
@@ -585,313 +957,149 @@ const scenarioWords = [
   "registry",
 ];
 
-function interviewCode(kind) {
-  const solutions = {
-    "arrays-hash-maps": `use std::collections::HashSet;\npub fn solve(input: &str) -> String { input.split_whitespace().filter_map(|s| s.parse::<i64>().ok()).collect::<HashSet<_>>().len().to_string() }`,
-    "two-pointers-sliding-window": `pub fn solve(input: &str) -> String { let mut n=input.split_whitespace().filter_map(|s|s.parse::<i64>().ok()); let target=n.next().unwrap_or(0); let mut v:Vec<_>=n.collect(); v.sort_unstable(); if v.len()<2{return "false".into()} let(mut l,mut r)=(0,v.len()-1); while l<r { match (v[l]+v[r]).cmp(&target) { std::cmp::Ordering::Equal=>return "true".into(), std::cmp::Ordering::Less=>l+=1, std::cmp::Ordering::Greater=>r-=1 } } "false".into() }`,
-    "stacks-queues": `pub fn solve(input: &str) -> String { let mut s=Vec::new(); for c in input.chars().filter(|c|"()[]{}".contains(*c)){ if "([{".contains(c){s.push(c)} else if !matches!((s.pop(),c),(Some('('),')')|(Some('['),']')|(Some('{'),'}')){return "false".into()} } s.is_empty().to_string() }`,
-    "binary-search": `pub fn solve(input: &str) -> String { let mut it=input.split_whitespace().filter_map(|s|s.parse::<i64>().ok()); let target=it.next().unwrap_or(0); let v:Vec<_>=it.collect(); v.binary_search(&target).map(|i|i as i64).unwrap_or(-1).to_string() }`,
-    "linked-lists": `struct Node{v:i64,next:Option<Box<Node>>} pub fn solve(input:&str)->String{let mut head=None;for v in input.split_whitespace().filter_map(|s|s.parse().ok()){head=Some(Box::new(Node{v,next:head}))}let mut out=Vec::new();while let Some(n)=head{out.push(n.v.to_string());head=n.next}out.join(" ")}`,
-    "trees-bst": `pub fn solve(input:&str)->String{let v:Vec<_>=input.split_whitespace().collect();v.iter().enumerate().filter(|(_,x)|**x!="null").map(|(i,_)|usize::BITS-(i+1).leading_zeros()).max().unwrap_or(0).to_string()}`,
-    heaps: `use std::collections::BinaryHeap; pub fn solve(input:&str)->String{let mut it=input.split_whitespace().filter_map(|s|s.parse::<i64>().ok());let k=it.next().unwrap_or(0).max(0) as usize;let mut h=BinaryHeap::new();for v in it{h.push(v);if h.len()>k{h.pop();}}let mut v=h.into_sorted_vec();v.iter().map(ToString::to_string).collect::<Vec<_>>().join(" ")}`,
-    "intervals-greedy": `pub fn solve(input:&str)->String{let mut v:Vec<(i64,i64)>=input.split(';').filter_map(|p|{let mut n=p.split_whitespace().filter_map(|s|s.parse().ok());Some((n.next()?,n.next()?))}).collect();v.sort_unstable();let mut o:Vec<(i64,i64)>=Vec::new();for(a,b)in v{if let Some(last)=o.last_mut(){if a<=last.1{last.1=last.1.max(b);continue}}o.push((a,b))}o.iter().map(|(a,b)|format!("{a} {b}")).collect::<Vec<_>>().join(";")}`,
-    backtracking: `fn visit(n:usize,used:&mut[bool],count:&mut u64){if used.iter().all(|x|*x){*count+=1;return}for i in 0..n{if !used[i]{used[i]=true;visit(n,used,count);used[i]=false}}}pub fn solve(input:&str)->String{let n=input.trim().parse().unwrap_or(0).min(10);let mut count=0;visit(n,&mut vec![false;n],&mut count);count.to_string()}`,
-    "graphs-union-find-topological": `use std::collections::{HashMap,HashSet,VecDeque};pub fn solve(input:&str)->String{let(mut parts)=input.split(';');let h:Vec<usize>=parts.next().unwrap_or("").split_whitespace().filter_map(|s|s.parse().ok()).collect();if h.len()<3{return "false".into()}let mut g:HashMap<usize,Vec<usize>>=HashMap::new();for e in parts.next().unwrap_or("").split(','){let mut p=e.split('-').filter_map(|s|s.parse().ok());if let(Some(a),Some(b))=(p.next(),p.next()){g.entry(a).or_default().push(b);g.entry(b).or_default().push(a)}}let(mut q,mut seen)=(VecDeque::from([h[1]]),HashSet::new());while let Some(x)=q.pop_front(){if x==h[2]{return "true".into()}if seen.insert(x){q.extend(g.get(&x).into_iter().flatten().copied())}}"false".into()}`,
-    "dynamic-programming": `pub fn solve(input:&str)->String{let n=input.trim().parse::<u32>().unwrap_or(0);let(mut a,mut b)=(1u128,1u128);for _ in 0..n{(a,b)=(b,a+b)}a.to_string()}`,
-    "bit-math": `pub fn solve(input:&str)->String{input.trim().parse::<u64>().unwrap_or(0).count_ones().to_string()}`,
-  };
-  return solutions[kind];
-}
-
-function interviewCases(kind) {
-  return {
-    "arrays-hash-maps": [
-      ["1 2 2 3", "3"],
-      ["", "0"],
-    ],
-    "two-pointers-sliding-window": [
-      ["9 2 7 4", "true"],
-      ["20 2 7 4", "false"],
-    ],
-    "stacks-queues": [
-      ["([]{})", "true"],
-      ["([)]", "false"],
-    ],
-    "binary-search": [
-      ["7 1 4 7 9", "2"],
-      ["8 1 4 7 9", "-1"],
-    ],
-    "linked-lists": [
-      ["1 2 3", "3 2 1"],
-      ["5", "5"],
-    ],
-    "trees-bst": [
-      ["1 2 3 4 null 6", "3"],
-      ["", "0"],
-    ],
-    heaps: [
-      ["3 9 1 7 2 8", "1 2 7"],
-      ["0 1 2", ""],
-    ],
-    "intervals-greedy": [
-      ["1 3;2 5;8 9", "1 5;8 9"],
-      ["2 4", "2 4"],
-    ],
-    backtracking: [
-      ["3", "6"],
-      ["0", "1"],
-    ],
-    "graphs-union-find-topological": [
-      ["4 0 3;0-1,1-3", "true"],
-      ["4 0 3;0-1,2-3", "false"],
-    ],
-    "dynamic-programming": [
-      ["4", "5"],
-      ["0", "1"],
-    ],
-    "bit-math": [
-      ["11", "3"],
-      ["0", "0"],
-    ],
-  }[kind];
-}
-
 function testSource(input, expected, name) {
   return `use solution::solve;\n#[test]\nfn ${name}() { assert_eq!(solve(${JSON.stringify(input)}), ${JSON.stringify(expected)}); }\n`;
 }
-
-// Self-sufficient problem statements per pattern. `notes` explain the two
-// worked examples in order; the (input, output) pairs themselves come from
-// interviewCases(kind), so a prompt can never drift from the graded tests.
-// `edge` marks which of the two cases reads as an edge case rather than a
-// representative example.
-const interviewSpecs = {
-  "arrays-hash-maps": {
-    problem: "Count how many **distinct** integer readings the record contains.",
-    input:
-      "A single line of whitespace-separated integers. Tokens that do not parse as integers are ignored. The line may be empty.",
-    output: "The count of distinct integer values, as a decimal string.",
-    notes: [
-      "four tokens, but `2` repeats, so three distinct values: {1, 2, 3}.",
-      "no tokens means zero distinct values.",
-    ],
-    edge: [false, true],
-    hint2: "A HashSet records membership: insert every value, then read its length.",
-  },
-  "two-pointers-sliding-window": {
-    problem:
-      "The first integer is a **target**; the rest are values. Report whether some **two distinct** values sum to the target.",
-    input:
-      "Whitespace-separated integers: the first is the target, the remaining are the pool of values. Non-integer tokens are ignored.",
-    output: "`true` if two different positions in the pool sum to the target, otherwise `false`.",
-    notes: [
-      "target 9; the pool [2, 7, 4] contains 2 + 7 = 9.",
-      "target 20; no pair in [2, 7, 4] reaches 20.",
-    ],
-    edge: [false, false],
-    hint2:
-      "Sort the values, then move a left and right pointer inward based on whether their sum is below or above the target.",
-  },
-  "stacks-queues": {
-    problem:
-      "Validate that the bracket characters `()`, `[]`, and `{}` are correctly **nested and balanced**. All other characters are ignored.",
-    input:
-      "A single line that may contain the six bracket characters interleaved with any other characters.",
-    output:
-      "`true` if every opening bracket is closed by the matching kind in the correct order, otherwise `false`.",
-    notes: [
-      "every bracket closes the most recent unmatched opener of its own kind.",
-      "the `)` tries to close a `[`, so the nesting is crossed.",
-    ],
-    edge: [false, false],
-    hint2:
-      "A stack matches nesting: push openers, and on each closer pop and confirm it is the matching kind.",
-  },
-  "binary-search": {
-    problem:
-      "The first integer is a **target**; the remaining integers form an **already-sorted** ascending array. Report the target's index in that array.",
-    input:
-      "Whitespace-separated integers: the first is the target, the rest are the sorted array (ascending). Non-integer tokens are ignored.",
-    output: "The zero-based index of the target within the array, or `-1` if it is absent.",
-    notes: [
-      "target 7; the array [1, 4, 7, 9] holds 7 at index 2.",
-      "target 8 is not present in [1, 4, 7, 9].",
-    ],
-    edge: [false, false],
-    hint2:
-      "The array after the target is already sorted — binary-search it, halving the window each comparison.",
-  },
-  "linked-lists": {
-    problem: "Read the values as a singly linked list in order, then return them **reversed**.",
-    input:
-      "Whitespace-separated integers giving the list from head to tail. Non-integer tokens are ignored; the line may be empty.",
-    output: "The values in reversed order, space-separated on one line.",
-    notes: ["head-to-tail 1→2→3 reverses to 3→2→1.", "a single node reverses to itself."],
-    edge: [false, false],
-    hint2: "Pushing each value onto the front of a new list reverses the order as you build it.",
-  },
-  "trees-bst": {
-    problem:
-      "The values are a binary tree in **level order** (breadth-first), with `null` marking an absent node. Return the tree's **depth** — its number of levels.",
-    input:
-      "Whitespace-separated tokens in level order; each is either an integer or the literal `null`. The line may be empty.",
-    output: "The depth (level count) of the deepest present node, as a decimal string.",
-    notes: [
-      "level 1: index 0; level 2: indices 1–2; level 3: indices 3 and 5 (index 4 is null) — three levels deep.",
-      "an empty tree has depth 0.",
-    ],
-    edge: [false, true],
-    hint2:
-      "In level order, the node at index i lives on level ⌊log2(i+1)⌋+1 — take the max over non-null positions.",
-  },
-  heaps: {
-    problem:
-      "The first integer is **k**; the rest are priorities. Return the **k smallest** priorities in ascending order.",
-    input:
-      "Whitespace-separated integers: the first is k, the rest are the priorities. Non-integer tokens are ignored.",
-    output:
-      "The k smallest priorities, sorted ascending and space-separated (empty line if k is 0).",
-    notes: [
-      "k=3; the smallest three of [9, 1, 7, 2, 8] are 1, 2, 7.",
-      "k=0 selects nothing, so the output is empty.",
-    ],
-    edge: [false, true],
-    hint2:
-      "A max-heap capped at size k keeps the k smallest seen so far: pop the largest whenever the heap grows past k.",
-  },
-  "intervals-greedy": {
-    problem: "**Merge** any overlapping or touching intervals and return the disjoint result.",
-    input:
-      "Intervals separated by `;`, each written as two whitespace-separated integers `start end`. Malformed intervals are ignored.",
-    output:
-      "The merged intervals, sorted by start, in the same `start end` / `;`-separated format.",
-    notes: [
-      "[1,3] and [2,5] overlap and merge into [1,5]; [8,9] stays separate.",
-      "a single interval is already merged.",
-    ],
-    edge: [false, false],
-    hint2:
-      "Sort by start, then sweep: extend the open interval whenever the next start is ≤ the current end.",
-  },
-  backtracking: {
-    problem: "Count the number of distinct **orderings** (permutations) of n items — that is, n!.",
-    input: "A single integer n (n is clamped to at most 10). Non-integer input is treated as 0.",
-    output: "The number of full orderings of n items, as a decimal string.",
-    notes: [
-      "three items admit 3! = 6 orderings.",
-      "the empty ordering is the one arrangement of zero items.",
-    ],
-    edge: [false, true],
-    hint2:
-      "Recurse over unused items, marking one used before the recursive call and clearing it after — count each complete assignment.",
-  },
-  "graphs-union-find-topological": {
-    problem:
-      "Given an undirected graph, report whether the **goal** node is **reachable** from the **start** node.",
-    input:
-      "Two sections separated by `;`. The header is three integers `nodeCount start goal`. The second section is a comma-separated edge list, each edge written `a-b`. A header with fewer than three integers yields `false`.",
-    output: "`true` if a path connects start to goal, otherwise `false`.",
-    notes: [
-      "edges 0–1 and 1–3 connect start 0 to goal 3.",
-      "0 reaches only 1; the goal 3 sits in a separate component.",
-    ],
-    edge: [false, false],
-    hint2:
-      "Build an adjacency map, then BFS or DFS from the start node and check whether the goal is ever visited.",
-  },
-  "dynamic-programming": {
-    problem:
-      "Count the distinct ways to climb **n steps** taking either **1 or 2** steps at a time.",
-    input: "A single non-negative integer n. Non-integer input is treated as 0.",
-    output: "The number of distinct climbing sequences, as a decimal string.",
-    notes: [
-      "the sequences are 1111, 112, 121, 211, and 22 — five in all.",
-      "one way to climb zero steps: take none.",
-    ],
-    edge: [false, true],
-    hint2: "Ways(n) = Ways(n−1) + Ways(n−2): roll two running totals forward instead of recursing.",
-  },
-  "bit-math": {
-    problem: "Count the number of **1 bits** (the population count) in the binary form of n.",
-    input:
-      "A single non-negative integer n, read as an unsigned 64-bit value. Non-integer input is treated as 0.",
-    output: "The number of set bits in n, as a decimal string.",
-    notes: ["11 is binary 1011, which has three 1 bits.", "zero has no set bits."],
-    edge: [false, true],
-    hint2: "Rust integers expose `count_ones()` — a direct population count of the set bits.",
-  },
-};
 
 function showToken(value) {
   return value === "" ? "(empty line)" : value;
 }
 
-// Assemble a self-sufficient prompt from the spec plus the exercise's own
-// graded cases, so every worked example is guaranteed to be a real assertion.
-function buildInterviewPrompt(word, kind, cases, complexity) {
-  const spec = interviewSpecs[kind];
+// Renders the pattern-level teaching material that every variant of a pattern
+// shares: how to recognise it, the invariant that makes it correct, where the
+// complexity comes from, and the idiomatic Rust it is usually written in.
+function renderPatternGuide(kind, label) {
+  const guide = patternGuides[kind];
+  const bullets = (items) => items.map((item) => `- ${item}`).join("\n");
+  return [
+    `### Pattern: ${label}`,
+    "",
+    `**Invariant.** ${guide.invariant}`,
+    "",
+    "**How to recognise it**",
+    bullets(guide.cues),
+    "",
+    "**Where the cost comes from**",
+    guide.derivation,
+    "",
+    "**Idiomatic Rust for this pattern**",
+    bullets(guide.idiomatic),
+    "",
+    "**Ownership and borrow traps**",
+    bullets(guide.pitfalls),
+  ].join("\n");
+}
+
+// Assemble a self-sufficient prompt from the variant plus its own graded
+// cases, so a worked example can never drift from a real assertion.
+function buildInterviewPrompt(word, kind, label, variant) {
   const examples = [];
   const edges = [];
-  cases.forEach(([input, output], index) => {
-    const note = spec.notes[index] ?? "";
-    if (spec.edge[index])
-      edges.push(`\`${input === "" ? "empty input" : input}\` → \`${output}\`: ${note}`);
-    else examples.push(`- \`${showToken(input)}\` → \`${showToken(output)}\` — ${note}`);
+  variant.cases.forEach(([input, output], index) => {
+    const note = variant.notes[index] ?? "";
+    const line = `- \`${showToken(input)}\` → \`${showToken(output)}\` — ${note}`;
+    if (variant.edge[index]) edges.push(line);
+    else examples.push(line);
   });
   edges.push(
-    "Malformed or empty input is handled without panicking; the answer is always a deterministic UTF-8 string.",
+    "- Malformed or empty input is handled without panicking; the answer is always a deterministic UTF-8 string.",
   );
   return [
-    `The ${word} system emits a compact text record. ${spec.problem}`,
+    `The ${word} system emits a compact text record. ${variant.problem}`,
     "",
     "**Input**",
-    spec.input,
+    variant.input,
     "",
     "**Output**",
-    spec.output,
+    variant.output,
     "",
-    "**Examples**",
-    ...examples,
+    "**Worked examples**",
+    examples.length > 0 ? examples.join("\n") : "- See the edge cases below.",
     "",
     "**Edge cases**",
-    edges.join(" "),
+    edges.join("\n"),
     "",
-    `**Target complexity:** ${complexity}.`,
+    `**Target complexity:** ${variant.complexity}.`,
+    "",
+    "---",
+    "",
+    renderPatternGuide(kind, label),
+    "",
+    "**Once it passes, answer these**",
+    patternGuides[kind].followUps.map((item) => `- ${item}`).join("\n"),
   ].join("\n");
 }
 
 function makeInterviewExercises() {
   const records = [];
   let sequence = 1;
-  for (const [kind, count, book, label, action, approach, complexity] of patternDefinitions) {
-    for (let i = 1; i <= count; i += 1) {
+  for (const [kind, _requestedCount, book, label] of patternDefinitions) {
+    const variants = patternVariants[kind];
+    if (!variants || variants.length === 0) throw new Error(`no variants authored for ${kind}`);
+    const guide = patternGuides[kind];
+    if (!guide) throw new Error(`no pattern guide authored for ${kind}`);
+    // Publish every authored problem exactly once. Re-labelling the same four
+    // implementations until a target count is reached inflates the catalog
+    // without adding a new contract, invariant, or assessment.
+    for (let i = 1; i <= variants.length; i += 1) {
+      const variant = variants[i - 1];
+      if (
+        variant.cases.length < 2 ||
+        new Set(variant.cases.map((testCase) => JSON.stringify(testCase))).size < 2
+      )
+        throw new Error(`${kind}/${variant.slug}: needs two distinct graded cases`);
       const word = scenarioWords[(i - 1) % scenarioWords.length];
       const id = `INT-${kind.toUpperCase().replaceAll("-", "_")}-${String(i).padStart(3, "0")}`;
-      const [visible, hidden] = interviewCases(kind);
-      const solution = interviewCode(kind);
+      const [visible, hidden] = variant.cases;
+      const regression = variant.cases[2];
+      const visibleTest = {
+        name: "visible_contract",
+        path: "tests/visible.rs",
+        content: testSource(...visible, "visible_contract"),
+      };
+      const hiddenTest = {
+        name: "hidden_boundary",
+        path: "tests/hidden.rs",
+        content: testSource(...hidden, "hidden_boundary"),
+      };
+      const regressionTest = {
+        name: "regression_contract",
+        path: "tests/regression.rs",
+        content: regression
+          ? testSource(...regression, "regression_contract")
+          : 'use solution::solve;\n#[test]\nfn regression_contract() { let first = solve("malformed input"); let second = solve("malformed input"); assert_eq!(first, second); }\n',
+      };
       records.push({
         id,
         family: "interview",
         sequence: sequence++,
-        title: `${action}: ${word} ${String(i).padStart(2, "0")}`,
+        title: `${variant.action}: ${word} ${String(i).padStart(2, "0")}`,
         category: kind,
         pattern: label,
+        variant: variant.slug,
         moduleId: moduleId(book),
         lessonId: lessonId(book),
         concepts: [kind],
-        difficulty: i % 5 === 0 ? "hard" : i % 2 === 0 ? "medium" : "easy",
-        estimateMinutes: 20 + (i % 4) * 10,
+        difficulty: variant.tier,
+        estimateMinutes: variant.tier === "hard" ? 45 : variant.tier === "medium" ? 30 : 20,
         runnable: true,
         scored: true,
-        requirement: i % 4 === 0 ? "stretch" : "core",
+        suiteReview: "reviewed",
+        requirement: variant.tier === "hard" ? "stretch" : "core",
         whyNow: `Chapter ${book} supplies the Rust data and control-flow tools needed to practice ${label.toLowerCase()} without hiding the algorithm.`,
         prepares: [
           `Recognize ${label.toLowerCase()} invariants in unfamiliar interview prompts`,
           "Explain complexity and ownership tradeoffs",
+          `State the invariant out loud: ${guide.invariant}`,
         ],
         prerequisiteIds: [lessonId(book)],
-        outcomes: [`Implement ${approach.toLowerCase()}`, `Defend the ${complexity} bound`],
-        prompt: buildInterviewPrompt(word, kind, [visible, hidden], complexity),
+        outcomes: [
+          `Implement ${variant.approach.toLowerCase()}`,
+          `Defend the ${variant.complexity} bound`,
+          `Choose the idiomatic Rust container and iterator for ${label.toLowerCase()}`,
+        ],
+        brief: `${variant.problem} Parse the stated record, preserve the ${label.toLowerCase()} invariant, and meet the ${variant.complexity} target.`,
+        prompt: buildInterviewPrompt(word, kind, label, variant),
         constraints: [
           "Parse malformed or empty input without panicking",
           "Do not perform network or filesystem I/O",
@@ -902,32 +1110,14 @@ function makeInterviewExercises() {
           files: [
             {
               path: "src/lib.rs",
-              content: `pub fn solve(_input: &str) -> String {\n    todo!("implement ${kind} invariant")\n}\n`,
+              content: `// ${variant.action}\n// Invariant to hold: ${guide.invariant}\n// Target: ${variant.complexity}\npub fn solve(_input: &str) -> String {\n    todo!("implement the ${label.toLowerCase()} invariant")\n}\n`,
             },
           ],
         },
         tests: {
-          visible: [
-            {
-              name: "visible_contract",
-              path: "tests/visible.rs",
-              content: testSource(...visible, "visible_contract"),
-            },
-          ],
-          hidden: [
-            {
-              name: "hidden_boundary",
-              path: "tests/hidden.rs",
-              content: testSource(...hidden, "hidden_boundary"),
-            },
-          ],
-          regression: [
-            {
-              name: "deterministic",
-              path: "tests/regression.rs",
-              content: `use solution::solve; #[test] fn deterministic(){ assert_eq!(solve(${JSON.stringify(visible[0])}), solve(${JSON.stringify(visible[0])})); }`,
-            },
-          ],
+          visible: [visibleTest],
+          hidden: [hiddenTest],
+          regression: [regressionTest],
         },
         evaluator: {
           mode: "cargo-workspace",
@@ -936,30 +1126,41 @@ function makeInterviewExercises() {
           commands: ["cargo test --offline --all-targets"],
           limits: { timeoutMs: 8000, memoryMb: 256, outputKb: 64 },
           expectedArtifacts: ["test-report"],
+          suiteId: `${id}-reviewed-v1`,
+          suiteSha256: sha256(
+            JSON.stringify({ hidden: [hiddenTest], regression: [regressionTest] }),
+          ),
+          manifestPolicy: { editable: false, dependencies: {} },
+          runtimePolicy: { loopback: false },
         },
+        // A five-rung ladder: name the pattern, then the invariant, then the
+        // Rust that expresses it, then the boundary to test, and only then
+        // the shape of the reference.
         hints: [
-          "Name the pattern first: read the input spec and the worked examples, and restate the rule the output must satisfy.",
-          interviewSpecs[kind].hint2,
-          `Test the empty/smallest input, then confirm ${complexity}.`,
+          "Restate the rule the output must satisfy in one sentence, using the worked examples — do not write code yet.",
+          `Recognition: ${guide.cues[0]} ${variant.hintPattern}`,
+          `Rust: ${variant.hintImpl}`,
+          `Boundary: run the smallest and the empty input first, then argue why the bound is ${variant.complexity}.`,
+          `Shape: ${variant.approach}`,
         ],
         explanation: {
-          purpose: `Recognize the ${label.toLowerCase()} pattern from an unfamiliar prompt and implement it in idiomatic Rust, defending its ${complexity} bound.`,
-          approach,
+          purpose: `Recognize the ${label.toLowerCase()} pattern from an unfamiliar prompt and implement it in idiomatic Rust, defending its ${variant.complexity} bound.`,
+          approach: variant.approach,
+          invariant: guide.invariant,
+          complexityDerivation: guide.derivation,
+          idiomaticRust: guide.idiomatic,
           compilerImplications:
-            "Parsing owns numeric values while traversal borrows collections; make mutation local so borrow scopes stay obvious.",
-          referenceRationale: `The reference keeps the invariant visible and achieves ${complexity}; tests observe behavior rather than implementation details.`,
+            "Parsing owns numeric values while traversal borrows collections; keep mutation local so borrow scopes stay obvious.",
+          referenceRationale: `The reference keeps the invariant visible and achieves ${variant.complexity}; tests observe behavior rather than implementation details.`,
+          followUps: guide.followUps,
         },
-        commonMistakes: [
-          "Indexing before checking the empty case",
-          "Letting parsing unwrap malformed learner input",
-          "Claiming a complexity bound that ignores sorting or retained state",
-        ],
+        commonMistakes: [...variant.mistakes, ...guide.pitfalls],
         tradeoffs: [
+          variant.tradeoff,
           "The reference favors a direct standard-library implementation over a reusable abstraction.",
-          "Extra allocation is accepted when it makes ownership and the invariant clearer.",
         ],
-        complexity,
-        referenceSolution: { files: [{ path: "src/lib.rs", content: `${solution}\n` }] },
+        complexity: variant.complexity,
+        referenceSolution: { files: [{ path: "src/lib.rs", content: `${variant.solution}\n` }] },
         externalReferences: [],
         provenance: {
           sourceId: "SRC-RUST-TUTOR-ORIGINAL",
@@ -967,7 +1168,10 @@ function makeInterviewExercises() {
           license: "MIT",
           attribution: "Original Rust Tutor exercise; not copied from LeetCode.",
           importedAt,
-          changeNotes: ["Original scenario, tests, hints, explanation, and solution."],
+          changeNotes: [
+            "Original scenario, tests, hints, explanation, and solution.",
+            `Authored variant '${variant.slug}' of the ${label.toLowerCase()} pattern.`,
+          ],
         },
       });
     }
@@ -1170,10 +1374,222 @@ function makeProjects() {
   return { projects, stages };
 }
 
-function normalizeMainmatter(raw) {
+function rustIdentifier(value) {
+  return value.replaceAll(/[^a-zA-Z0-9_]/gu, "_");
+}
+
+function pairedMainmatterContract(recordId, path, mode, body) {
+  const stem = rustIdentifier(recordId.replace(/^mainmatter-/u, ""));
+  const build = (kind) => {
+    const name = `rust_tutor_${kind}_${stem}`;
+    return {
+      name,
+      path: mode === "write" ? path.replace(/\.rs$/u, `_${kind}.rs`) : path,
+      mode,
+      content: body.replaceAll("__MODULE__", name).replaceAll("__TEST__", name),
+    };
+  };
+  return { hidden: [build("hidden")], regression: [build("regression")] };
+}
+
+function protectedUpstreamContract(record) {
+  const visible = record.tests?.visible?.find((test) =>
+    /#\[(?:tokio::)?test(?:\([^\]]*\))?\]/u.test(test.content),
+  );
+  if (!visible) return undefined;
+  // Some Mainmatter exercises deliberately put TODOs inside the test module
+  // itself (for example, casting drills). Preserve the reviewed assertions
+  // from the solution snapshot rather than cloning those incomplete TODOs
+  // into the server-owned suite.
+  const contractContent =
+    record.referenceSolution?.files?.find((file) => file.path === visible.path)?.content ??
+    visible.content;
+  const stem = rustIdentifier(record.id.replace(/^mainmatter-/u, ""));
+  const build = (kind) => {
+    const name = `rust_tutor_${kind}_${stem}`;
+    if (visible.path.startsWith("src/")) {
+      const marker = contractContent.lastIndexOf("#[cfg(test)]");
+      if (marker < 0)
+        throw new Error(`${record.id}: inline upstream tests have no cfg(test) boundary`);
+      const content = contractContent.slice(marker).replace(/\bmod\s+tests\b/u, `mod ${name}`);
+      if (!content.includes(`mod ${name}`))
+        throw new Error(`${record.id}: inline upstream test module could not be isolated`);
+      return { name, path: visible.path, mode: "append", content: `\n${content}\n` };
+    }
+    const content = contractContent.replace(
+      /(#\[(?:tokio::)?test(?:\([^\]]*\))?\]\s*(?:async\s+)?fn\s+)([a-zA-Z0-9_]+)/gu,
+      `$1${name}_$2`,
+    );
+    if (!content.includes(name))
+      throw new Error(`${record.id}: external upstream test names could not be isolated`);
+    return {
+      name,
+      path: `tests/__rust_tutor_${kind}.rs`,
+      mode: "write",
+      content: `// Protected copy of the pinned upstream test contract.\n${content}\n`,
+    };
+  };
+  return { hidden: [build("hidden")], regression: [build("regression")] };
+}
+
+function compileOnlyMainmatterContract(record) {
+  const contracts = {
+    "mainmatter-03-ticket_v1-03-modules": [
+      "src/lib.rs",
+      "append",
+      `\n#[cfg(test)]\nmod __MODULE__ {\n    use super::*;\n    #[test]\n    fn __TEST__() {\n        let ticket = Ticket::new("title".into(), "description".into(), "To-Do".into());\n        assert_eq!(ticket.status, "To-Do");\n    }\n}\n`,
+    ],
+    "mainmatter-03-ticket_v1-04-visibility": [
+      "src/lib.rs",
+      "append",
+      `\n#[cfg(test)]\nmod __MODULE__ {\n    use super::ticket::Ticket;\n    #[test]\n    fn __TEST__() {\n        let _ = Ticket::new("title".into(), "description".into(), "To-Do".into());\n    }\n}\n`,
+    ],
+    "mainmatter-04-traits-02-orphan-rule": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `struct Local(u32);\nimpl PartialEq for Local { fn eq(&self, other: &Self) -> bool { self.0 == other.0 } }\n#[test]\nfn __TEST__() { assert!(Local(7) == Local(7)); }\n`,
+    ],
+    "mainmatter-04-traits-05-trait-bounds": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `use trait_bounds::min;\n#[test]\nfn __TEST__() { assert_eq!(min(String::from("z"), String::from("a")), "a"); }\n`,
+    ],
+    "mainmatter-04-traits-08-sized": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `#[test]\nfn __TEST__() { sized::example(); assert_eq!(std::mem::size_of::<&str>(), 2 * std::mem::size_of::<usize>()); }\n`,
+    ],
+    "mainmatter-04-traits-09-from": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `use from::WrappingU32;\n#[test]\nfn __TEST__() { let _: WrappingU32 = 42_u32.into(); let _ = WrappingU32::from(7_u32); }\n`,
+    ],
+    "mainmatter-04-traits-11-clone": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `use clone::{summary, Ticket};\n#[test]\nfn __TEST__() {\n    let ticket = Ticket { title: "t".into(), description: "d".into(), status: "To-Do".into() };\n    let (ticket, summary) = summary(ticket);\n    assert_eq!((ticket.title, summary.title, summary.status), ("t".into(), "t".into(), "To-Do".into()));\n}\n`,
+    ],
+    "mainmatter-05-ticket_v2-10-packages": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `#[test]\nfn __TEST__() { packages::hello_world(); }\n`,
+    ],
+    "mainmatter-08-futures-04-future": [
+      "src/lib.rs",
+      "append",
+      `\n#[cfg(test)]\nmod __MODULE__ {\n    use super::*;\n    #[test]\n    fn __TEST__() { let _: fn() = spawner; }\n}\n`,
+    ],
+    "mainmatter-08-futures-08-outro": [
+      "tests/__rust_tutor_contract.rs",
+      "write",
+      `use outro_08::required_endpoints;\n#[test]\nfn __TEST__() {\n    assert_eq!(required_endpoints(), ["POST /tickets", "GET /tickets/:id", "PATCH /tickets/:id"]);\n}\n`,
+    ],
+  };
+  const contract = contracts[record.id];
+  return contract ? pairedMainmatterContract(record.id, ...contract) : undefined;
+}
+
+function specializedMainmatterContract(record) {
+  if (record.id !== "mainmatter-08-futures-05-blocking") return undefined;
+  return pairedMainmatterContract(
+    record.id,
+    "src/lib.rs",
+    "append",
+    `
+#[cfg(test)]
+mod __MODULE__ {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn __TEST__() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = std::net::TcpStream::connect(address).unwrap();
+        let release_client = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(500));
+            drop(client);
+        });
+        tokio::spawn(echo(listener));
+        tokio::task::yield_now().await;
+        let started = Instant::now();
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        let scheduler_delay = started.elapsed();
+        release_client.join().unwrap();
+        assert!(
+            scheduler_delay < Duration::from_millis(200),
+            "blocking socket I/O stalled the async executor for {scheduler_delay:?}"
+        );
+    }
+}
+`,
+  );
+}
+
+function mainmatterManifestPolicy(record) {
+  if (record.starter?.manifest?.editable !== true) return { editable: false, dependencies: {} };
+  const solutionManifest = record.referenceSolution?.files?.find(
+    (file) => file.path === "Cargo.toml",
+  )?.content;
+  if (!solutionManifest) throw new Error(`${record.id}: editable manifest has no reference`);
+  let section = "";
+  const packageFields = {};
+  const dependencies = {};
+  for (const rawLine of solutionManifest.split("\n")) {
+    const line = rawLine.split("#")[0].trim();
+    if (!line) continue;
+    if (line.startsWith("[") && line.endsWith("]")) {
+      section = line.slice(1, -1);
+      continue;
+    }
+    const match = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*"([^"]+)"$/u);
+    if (!match) continue;
+    if (section === "package") packageFields[match[1]] = match[2];
+    if (section === "dependencies") dependencies[match[1]] = match[2];
+  }
+  return { editable: true, package: packageFields, dependencies };
+}
+
+function reviewedMainmatterContract(record, authored) {
+  if (authored) return authored;
+  const generated =
+    specializedMainmatterContract(record) ??
+    protectedUpstreamContract(record) ??
+    compileOnlyMainmatterContract(record);
+  if (!generated) throw new Error(`${record.id}: no behavior or compiler contract is available`);
+  const needsLoopback = record.referenceSolution?.files?.some((file) =>
+    /(?:TcpListener|TcpStream|UdpSocket)[\s\S]*127\.0\.0\.1|127\.0\.0\.1[\s\S]*(?:TcpListener|TcpStream|UdpSocket)/u.test(
+      file.content,
+    ),
+  );
+  return {
+    id: record.id,
+    suiteId: `${record.id}-reviewed-v1`,
+    manifestPolicy: mainmatterManifestPolicy(record),
+    runtimePolicy: { loopback: needsLoopback === true },
+    ...generated,
+  };
+}
+
+function normalizeMainmatter(
+  raw,
+  integrity,
+  knowledgeMappings,
+  pilotContracts,
+  mainmatterDocuments,
+) {
   const list = Array.isArray(raw) ? raw : raw.exercises;
   if (!Array.isArray(list))
     throw new Error("mainmatter.json must be an array or { exercises: [] }");
+  const mappingByExercise = new Map(
+    knowledgeMappings.mainmatterExercises.map((mapping) => [mapping.exerciseId, mapping]),
+  );
+  const pilotByExercise = new Map((pilotContracts.pilots ?? []).map((pilot) => [pilot.id, pilot]));
+  if (pilotContracts.schemaVersion !== 1 || pilotByExercise.size !== 8)
+    throw new Error("Mainmatter pilot contracts must contain exactly eight v1 pilots");
+  const documentByExercise = new Map(
+    (mainmatterDocuments.exercises ?? []).map((document) => [document.exerciseId, document]),
+  );
   return list.map((record, index) => {
     const sequence = index + 1;
     const arcChapter =
@@ -1188,6 +1604,90 @@ function normalizeMainmatter(raw) {
               : sequence <= 89
                 ? 16
                 : 17;
+    const capstoneContract = record.id === "mainmatter-08-futures-08-outro";
+    const overflowContract = record.id === "mainmatter-02-basic_calculator-08-overflow";
+    const packagesContract = record.id === "mainmatter-05-ticket_v2-10-packages";
+    const adaptOverflowSource = (content) =>
+      content
+        .replace(
+          "// Customize the `dev` profile to wrap around on overflow.\n// Check Cargo's documentation to find out the right syntax:\n// https://doc.rust-lang.org/cargo/reference/profiles.html\n//\n// For reasons that we'll explain later, the customization needs to be done in the `Cargo.toml`\n// at the root of the repository, not in the `Cargo.toml` of the exercise.\n",
+          "// Make overflow behavior explicit in this function.\n// Replace the multiplication below with u32 wrapping arithmetic; manifests are locked.\n",
+        )
+        .replace(
+          "// With the default dev profile, this will panic when you run `cargo test`\n        // We want it to wrap around instead",
+          "// Ordinary multiplication can panic when overflow checks are enabled.\n        // Explicit wrapping arithmetic must produce this stable result.",
+        );
+    const starterRecord = capstoneContract
+      ? {
+          ...record.starter,
+          manifest: { ...record.starter.manifest, editable: false },
+          files: [
+            {
+              path: "src/lib.rs",
+              editable: true,
+              role: "starter",
+              content:
+                '/// Declare the stable HTTP surface before selecting a framework.\n/// Return the three required method/path pairs in create, retrieve, patch order.\npub fn required_endpoints() -> [&\'static str; 3] {\n    todo!("define the ticket API surface")\n}\n',
+            },
+          ],
+        }
+      : overflowContract
+        ? {
+            ...record.starter,
+            files: record.starter.files.map((file) =>
+              file.path === "src/lib.rs"
+                ? {
+                    ...file,
+                    editable: true,
+                    role: "starter-and-visible-test",
+                    content: adaptOverflowSource(file.content),
+                  }
+                : file,
+            ),
+          }
+        : packagesContract
+          ? {
+              ...record.starter,
+              files: [
+                ...record.starter.files,
+                {
+                  path: "src/lib.rs",
+                  editable: true,
+                  role: "starter",
+                  content:
+                    '/// Public library target used by the binary.\npub fn hello_world() {\n    todo!("implement the library entrypoint")\n}\n',
+                },
+              ],
+            }
+          : record.starter;
+    const referenceSolution = capstoneContract
+      ? {
+          disclosure: "locked-until-accepted-or-assisted-reveal",
+          files: [
+            { path: "Cargo.toml", content: record.starter.manifest.content },
+            {
+              path: "src/lib.rs",
+              content:
+                '/// Stable method/path contract for the ticket API.\npub fn required_endpoints() -> [&\'static str; 3] {\n    ["POST /tickets", "GET /tickets/:id", "PATCH /tickets/:id"]\n}\n',
+            },
+          ],
+        }
+      : overflowContract
+        ? {
+            ...record.referenceSolution,
+            files: record.referenceSolution.files.map((file) =>
+              file.path === "src/lib.rs"
+                ? {
+                    ...file,
+                    content: file.content
+                      .replace("let mut result = 1;", "let mut result: u32 = 1;")
+                      .replace("result *= i;", "result = result.wrapping_mul(i);"),
+                  }
+                : file,
+            ),
+          }
+        : record.referenceSolution;
+    const contractRecord = { ...record, starter: starterRecord, referenceSolution };
     const upstreamEvaluator = record.evaluator ?? {};
     const commands = Array.isArray(upstreamEvaluator.commands)
       ? upstreamEvaluator.commands
@@ -1197,40 +1697,55 @@ function normalizeMainmatter(raw) {
     const hiddenContract = upstreamEvaluator.hiddenTests ?? {};
     const regressionContract = upstreamEvaluator.regressionTests ?? {};
     const manifest =
-      typeof record.starter?.manifest === "string"
-        ? record.starter.manifest
-        : record.starter?.manifest?.content;
+      typeof starterRecord?.manifest === "string"
+        ? starterRecord.manifest
+        : starterRecord?.manifest?.content;
     const provenance = record.provenance ?? {};
+    const packageHashes = integrity.packageHashes.get(record.id);
+    if (!packageHashes) throw new Error(`${record.id}: package integrity record is missing`);
+    const mapping = mappingByExercise.get(record.id);
+    if (!mapping) throw new Error(`${record.id}: canonical knowledge mapping is missing`);
+    const pilot = pilotByExercise.get(record.id);
+    const sourceDocument = documentByExercise.get(record.id);
+    if (!sourceDocument)
+      throw new Error(`${record.id}: typed Mainmatter source document is missing`);
+    const reviewedContract = reviewedMainmatterContract(contractRecord, pilot);
     const license =
       typeof provenance.license === "string" ? provenance.license : provenance.license?.spdx;
     const tests = {
       visible: record.tests?.visible?.length
-        ? record.tests.visible
+        ? record.tests.visible.map((test) => ({
+            ...test,
+            content: overflowContract ? adaptOverflowSource(test.content) : test.content,
+          }))
         : [
             {
               name: `${record.id}-visible-build`,
               path: "tests/__rust_tutor_visible.rs",
-              content: "#[test] fn upstream_package_builds(){ assert!(true); }\n",
+              content: "// Compiler-only unit; acceptance comes from the protected server suite.\n",
             },
           ],
-      hidden: record.tests?.hidden?.length
-        ? record.tests.hidden
-        : [
-            {
-              name: hiddenContract.suiteId ?? `${record.id}-hidden-contract`,
-              path: hiddenContract.mountPath ?? "tests/__rust_tutor_hidden.rs",
-              content: `// Server-only checks generated from the pinned public contract.\n// ${requireTextArray(hiddenContract.checks).join("\n// ")}\n#[test] fn hidden_contract_mounts(){ assert!(true); }\n`,
-            },
-          ],
-      regression: record.tests?.regression?.length
-        ? record.tests.regression
-        : [
-            {
-              name: `${record.id}-regression-contract`,
-              path: "tests/__rust_tutor_regression.rs",
-              content: `// Reference solution must pass unchanged upstream tests.\n// ${JSON.stringify(regressionContract)}\n#[test] fn regression_contract_mounts(){ assert!(true); }\n`,
-            },
-          ],
+      hidden: reviewedContract.hidden.map((test) => ({
+        ...test,
+        content: overflowContract ? adaptOverflowSource(test.content) : test.content,
+      })),
+      regression: reviewedContract.regression.map((test) => ({
+        ...test,
+        content: overflowContract ? adaptOverflowSource(test.content) : test.content,
+      })),
+    };
+    const suiteSha256 = sha256(
+      JSON.stringify({ hidden: tests.hidden, regression: tests.regression }),
+    );
+    const capstoneExplanation = {
+      purpose:
+        "A network service should begin with an explicit public surface. This adaptation asks for the three method/path pairs that define ticket creation, retrieval, and patching before framework or runtime choices can blur that boundary.",
+      approach:
+        "Implement required_endpoints as a fixed three-element array in create, retrieve, patch order. Preserve the exact HTTP methods, plural resource path, identifier placeholder, and return type; no router or allocation is needed.",
+      compilerImplications:
+        "The array length is part of the return type, and &'static str makes each endpoint a program-lifetime string literal. The compiler therefore checks the result shape while the protected assertions check order and exact spelling.",
+      referenceRationale:
+        "The reference uses literals in a fixed array because the contract is static. A Vec, framework dependency, or runtime would add failure modes without proving anything more about the required API surface.",
     };
     return {
       ...record,
@@ -1238,34 +1753,121 @@ function normalizeMainmatter(raw) {
       sequence,
       moduleId: record.moduleId ?? moduleId(arcChapter),
       lessonId: record.lessonId ?? lessonId(arcChapter),
-      concepts: record.concepts ?? [record.arc?.id ?? `mainmatter-arc-${arcChapter}`],
+      concepts: mapping.conceptIds,
+      conceptIds: mapping.conceptIds,
       difficulty:
         { beginner: "easy", intermediate: "medium", advanced: "hard" }[record.difficulty] ??
         record.difficulty ??
         "medium",
       runnable: true,
       scored: true,
+      suiteReview: "reviewed",
       requirement: record.requirement ?? "core",
-      whyNow:
-        record.whyNow ??
-        `This upstream unit reinforces the Rust model introduced by chapter ${arcChapter}.`,
-      prepares: record.prepares ?? ["Continue the cumulative Mainmatter project arc"],
+      whyNow: capstoneContract
+        ? "The Futures arc ends by separating a stable service contract from framework and runtime choices; that boundary is the prerequisite for a maintainable async implementation."
+        : overflowContract
+          ? "After ordinary multiplication, this exercise makes overflow semantics an explicit domain choice and lets the protected tests distinguish checked from wrapping behavior."
+          : `${record.title} belongs here because it turns “${
+              record.outcomes?.[0]?.statement ?? record.brief
+            }” into compiler- or test-observable evidence after chapter ${arcChapter}.`,
+      prepares: capstoneContract
+        ? [
+            "Name an HTTP resource boundary before selecting an async framework",
+            "Distinguish an interface contract from a full production service",
+            "Use a fixed Rust type to make a small architecture decision executable",
+          ]
+        : (record.prepares ?? ["Continue the cumulative Mainmatter project arc"]),
       prerequisiteIds: record.prerequisiteIds ??
         record.prerequisites?.map((entry) => entry.id) ?? [lessonId(arcChapter)],
-      outcomes: record.outcomes?.map((entry) =>
-        typeof entry === "string" ? entry : entry.statement,
-      ) ?? ["Make the focused upstream test pass and explain the compiler feedback"],
-      prompt: record.prompt ?? record.brief,
-      constraints: record.constraints ?? [
-        "Preserve the pinned public API and supplied assertions",
-        "Run the focused package with Cargo offline",
-        "Do not weaken, delete, or ignore tests",
-      ],
-      starter: { ...record.starter, manifest, files: record.starter?.files ?? [] },
+      outcomes: mapping.outcomeIds,
+      outcomeIds: mapping.outcomeIds,
+      sourceOutcomeStatements:
+        record.outcomes?.map((entry) => (typeof entry === "string" ? entry : entry.statement)) ??
+        [],
+      mappingRationale: mapping.rationale,
+      mappingSource: mapping.mappingSource,
+      sourceDocument,
+      ...(pilot ? { pilot: true } : {}),
+      brief: capstoneContract
+        ? "Declare the exact create, retrieve, and patch endpoints for the ticket resource as a fixed Rust array. This is a deliberately narrow architecture slice, not an implementation of the HTTP server."
+        : overflowContract
+          ? "Make factorial use explicit wrapping multiplication so its behavior is stable across Cargo profiles. Preserve the supplied zero, small-number, and factorial(20) assertions."
+          : record.brief,
+      prompt: capstoneContract
+        ? "Define the smallest stable contract for the ticket REST API before choosing a framework: return the exact create, retrieve, and patch method/path pairs. This makes the API boundary reviewable and testable while the full asynchronous service remains a project-stage concern."
+        : overflowContract
+          ? "Replace profile-dependent integer multiplication with the u32 operation whose contract deliberately wraps on overflow. Keep factorial's signature and all supplied tests unchanged."
+          : (record.prompt ?? record.brief),
+      explanation: capstoneContract
+        ? capstoneExplanation
+        : record.explanation && typeof record.explanation === "object"
+          ? {
+              ...record.explanation,
+              compilerImplications: record.explanation.compilerImplications?.replace(
+                "whether the implementation truly ",
+                "whether the implementation can ",
+              ),
+            }
+          : record.explanation,
+      constraints: capstoneContract
+        ? [
+            "Keep the required_endpoints signature and fixed array length",
+            "Return exactly the three specified method/path pairs in contract order",
+            "Do not add a runtime, router, network access, or filesystem access",
+          ]
+        : overflowContract
+          ? [
+              "Edit only src/lib.rs; workspace and package manifests remain locked",
+              "Use explicit wrapping arithmetic rather than relying on Cargo profile defaults",
+              "Preserve the factorial signature and all supplied assertions",
+            ]
+          : (record.constraints ?? [
+              "Preserve the pinned public API and supplied assertions",
+              "Run the focused package with Cargo offline",
+              "Do not weaken, delete, or ignore tests",
+            ]),
+      hints: capstoneContract
+        ? [
+            {
+              level: 1,
+              title: "Read the return type",
+              text: "The function must return exactly three static string slices; no heap allocation or async runtime is required.",
+            },
+            {
+              level: 2,
+              title: "Model the resource",
+              text: "Use POST on the collection to create, then GET and PATCH on the identifier path for retrieval and partial update.",
+            },
+            {
+              level: 3,
+              title: "Check exactness",
+              text: "Return POST /tickets, GET /tickets/:id, and PATCH /tickets/:id in that order with exact capitalization and punctuation.",
+            },
+          ]
+        : record.hints,
+      commonMistakes: capstoneContract
+        ? [
+            "Returning singular /ticket paths or putting the identifier on the create endpoint.",
+            "Adding Tokio or a web framework even though the graded boundary is a static API declaration.",
+            "Changing endpoint order or using PUT where the contract requires PATCH.",
+          ]
+        : record.commonMistakes,
+      tradeoffs: capstoneContract
+        ? [
+            "A fixed array is intentionally closed and allocation-free; a richer route table belongs in the later service implementation.",
+            "The :id spelling is framework-neutral documentation here, not a claim about one router's path-parameter syntax.",
+          ]
+        : record.tradeoffs,
+      starter: { ...starterRecord, manifest, files: starterRecord?.files ?? [] },
+      referenceSolution,
       tests,
       evaluator: {
         mode: "cargo-workspace",
-        editableFiles: upstreamEvaluator.editableFiles ?? ["src/lib.rs"],
+        editableFiles: overflowContract
+          ? ["src/lib.rs"]
+          : (upstreamEvaluator.editableFiles ?? ["src/lib.rs"]).filter(
+              (path) => path !== "Cargo.toml" || reviewedContract.manifestPolicy.editable,
+            ),
         lockedFiles: upstreamEvaluator.lockedFiles ?? ["Cargo.toml"],
         commands: commands.length ? commands : ["cargo test --offline --all-targets"],
         limits: {
@@ -1280,52 +1882,399 @@ function normalizeMainmatter(raw) {
           (artifact) =>
             typeof artifact === "string" ? artifact : (artifact.path ?? artifact.kind),
         ),
-        hiddenContract,
-        regressionContract,
+        hiddenContract: capstoneContract
+          ? {
+              serverOnly: true,
+              suiteId: reviewedContract.suiteId,
+              checks: [
+                "required_endpoints returns the exact create, retrieve, and patch method/path pairs",
+                "the fixed array preserves the declared order and contains no extra routes",
+              ],
+            }
+          : hiddenContract,
+        regressionContract: capstoneContract
+          ? {
+              referenceSolutionMustPass: true,
+              starterMustFail: true,
+              boundary: "The suite proves the route declaration only, not a running HTTP service.",
+            }
+          : regressionContract,
         environment: upstreamEvaluator.environment ?? { CARGO_NET_OFFLINE: "true" },
+        packageRoot: starterRecord.workspaceRoot,
+        suiteId: reviewedContract.suiteId,
+        suiteSha256,
+        manifestPolicy: reviewedContract.manifestPolicy,
+        runtimePolicy: { loopback: reviewedContract.runtimePolicy?.loopback === true },
       },
       externalReferences: record.externalReferences ?? [],
       provenance: {
         sourceId: "SRC-MAINMATTER-100",
         mode: "adapted",
         originalPath: provenance.originalPath ?? provenance.starter?.path,
+        sourcePath: record.sourceLesson?.path ?? provenance.starter?.lessonPath,
+        sourceCommit: provenance.starterCommit ?? provenance.starter?.sha,
         canonicalUrl: provenance.canonicalUrl ?? provenance.starter?.url,
+        starterPath: provenance.starter?.path ?? provenance.originalPath,
+        starterCanonicalUrl: provenance.starter?.url ?? provenance.canonicalUrl,
+        solutionPath: provenance.solution?.path ?? provenance.originalPath,
+        solutionCanonicalUrl: provenance.solution?.url,
+        sha256:
+          record.sourceLesson?.sha256 ??
+          sha256(
+            JSON.stringify({
+              sourceLesson: record.sourceLesson?.markdown,
+              manifest,
+              files: starterRecord?.files,
+            }),
+          ),
         starterCommit: provenance.starterCommit ?? provenance.starter?.sha,
         solutionCommit: provenance.solutionCommit ?? provenance.solution?.sha,
+        packageHashAlgorithm: integrity.algorithm,
+        starterPackageSha256: packageHashes.starterPackageSha256,
+        solutionPackageSha256: packageHashes.solutionPackageSha256,
+        starterSharedWorkspaceSha256: integrity.starterSharedWorkspaceSha256,
+        solutionSharedWorkspaceSha256: integrity.solutionSharedWorkspaceSha256,
         license,
         attribution: provenance.attribution,
         importedAt: provenance.importedAt ?? importedAt,
-        changeNotes: provenance.changeNotes ?? [provenance.changes].filter(Boolean),
+        changeNotes: [
+          ...(provenance.changeNotes ?? [provenance.changes].filter(Boolean)),
+          ...(capstoneContract
+            ? [
+                "Scoped the unstructured REST capstone to a testable method/path contract; full service implementation remains in the project track.",
+              ]
+            : []),
+          ...(overflowContract
+            ? [
+                "Replaced the unsafe workspace-root profile edit with an equivalent local wrapping_mul implementation contract.",
+              ]
+            : []),
+          ...(packagesContract
+            ? [
+                "Added the requested src/lib.rs as an editable TODO stub so the browser workbench can create and grade the library target without allowing arbitrary paths.",
+              ]
+            : []),
+        ],
       },
     };
   });
 }
 
-function requireTextArray(value) {
-  return Array.isArray(value) && value.length
-    ? value.map(String)
-    : ["Verify the learner implementation preserves the pinned upstream behavior."];
+function runCompiler(args) {
+  const result = spawnSync(
+    "cargo",
+    ["run", "--quiet", "-p", "curriculum-compiler", "--", ...args],
+    {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
+  if (result.status !== 0)
+    throw new Error(`curriculum compiler failed:\n${result.stdout ?? ""}${result.stderr ?? ""}`);
+}
+
+export async function compileSourceDocuments({ check = false } = {}) {
+  const temporary = check ? await mkdtemp(resolve(tmpdir(), "rust-tutor-content-")) : null;
+  const nextBook = temporary ? resolve(temporary, "rust-book.json") : rustBookPath;
+  const nextMainmatter = temporary
+    ? resolve(temporary, "mainmatter-documents.json")
+    : mainmatterDocumentsPath;
+  try {
+    runCompiler(["book", resolve(contentDir, "sources/rust-book"), nextBook]);
+    runCompiler([
+      "mainmatter",
+      resolve(contentDir, "mainmatter.json"),
+      resolve(contentDir, "sources/mainmatter/book/src/going_further.md"),
+      nextMainmatter,
+    ]);
+    if (check) {
+      for (const [current, next] of [
+        [rustBookPath, nextBook],
+        [mainmatterDocumentsPath, nextMainmatter],
+      ]) {
+        if ((await readFile(current, "utf8").catch(() => "")) !== (await readFile(next, "utf8")))
+          throw new Error(`${relative(root, current)} is stale; run pnpm content:build:v2`);
+      }
+    }
+  } finally {
+    if (temporary) await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+async function listFiles(base) {
+  const files = [];
+  async function walk(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.isFile()) files.push(path);
+    }
+  }
+  await walk(base);
+  return files.sort();
+}
+
+export async function buildSourceManifest() {
+  const roots = [
+    {
+      id: "SRC-RUST-BOOK-STABLE",
+      commit: rustBookCommit,
+      base: resolve(contentDir, "sources/rust-book"),
+    },
+    {
+      id: "SRC-MAINMATTER-100",
+      commit: mainmatterStarterCommit,
+      solutionCommit: mainmatterSolutionCommit,
+      base: resolve(contentDir, "sources/mainmatter"),
+    },
+  ];
+  const sources = [];
+  for (const source of roots) {
+    const files = [];
+    for (const path of await listFiles(source.base)) {
+      const content = await readFile(path);
+      files.push({
+        path: relative(root, path).replaceAll("\\", "/"),
+        bytes: content.byteLength,
+        sha256: sha256(content),
+      });
+    }
+    sources.push({
+      id: source.id,
+      commit: source.commit,
+      ...(source.solutionCommit ? { solutionCommit: source.solutionCommit } : {}),
+      files,
+    });
+  }
+  const mainmatter = await readFile(resolve(contentDir, "mainmatter.json"));
+  const mainmatterSource = sources.find((source) => source.id === "SRC-MAINMATTER-100");
+  mainmatterSource.files.push({
+    path: "content/curriculum-v2/mainmatter.json",
+    bytes: mainmatter.byteLength,
+    sha256: sha256(mainmatter),
+  });
+  const integrity = mainmatterIntegrity(JSON.parse(mainmatter.toString("utf8")));
+  mainmatterSource.integrity = {
+    algorithm: integrity.algorithm,
+    starterSharedWorkspaceSha256: integrity.starterSharedWorkspaceSha256,
+    solutionSharedWorkspaceSha256: integrity.solutionSharedWorkspaceSha256,
+    packages: [...integrity.packageHashes.entries()].map(([exerciseId, hashes]) => ({
+      exerciseId,
+      ...hashes,
+    })),
+  };
+  return {
+    schemaVersion: 1,
+    generatedFromPinnedSources: true,
+    sources,
+  };
+}
+
+export function validateKnowledgeExtension(graph, graphText, extension) {
+  if (
+    extension.schemaVersion !== 1 ||
+    extension.reviewState !== "accepted" ||
+    extension.canonicalGraph?.path !== "knowledge/feed/generated/tutor-feed.json" ||
+    extension.canonicalGraph?.sha256 !== sha256(graphText)
+  )
+    throw new Error("knowledge extension is not bound to the canonical graph bytes");
+  const feedNodes = new Map(graph.graphProjection.nodes.map((node) => [node.id, node]));
+  const nodes = new Map(feedNodes);
+  const extensionSources = new Map();
+  for (const node of extension.newNodes ?? []) {
+    if (nodes.has(node.id)) throw new Error(`${node.id}: new knowledge node duplicates the feed`);
+    if (!["concept", "learning_outcome"].includes(node.kind) || node.reviewState !== "accepted")
+      throw new Error(`${node.id}: new knowledge node has an unapproved kind or review state`);
+    nodes.set(node.id, node);
+    extensionSources.set(node.id, "content/curriculum-v2/knowledge-extension.json#newNodes");
+  }
+  const promotedIds = new Set();
+  for (const promotion of extension.promotions ?? []) {
+    if (promotedIds.has(promotion.id))
+      throw new Error(`${promotion.id}: duplicate knowledge promotion`);
+    promotedIds.add(promotion.id);
+    const node = feedNodes.get(promotion.id);
+    if (!node) throw new Error(`${promotion.id}: promotion target is missing from the feed`);
+    if (
+      node.kind !== promotion.expectedKind ||
+      node.reviewState !== promotion.expectedReviewState ||
+      sha256(JSON.stringify(node)) !== promotion.expectedNodeSha256 ||
+      promotion.promotedReviewState !== "accepted"
+    )
+      throw new Error(`${promotion.id}: promotion target differs from its reviewed prior state`);
+    nodes.set(promotion.id, {
+      ...node,
+      reviewState: promotion.promotedReviewState,
+      provenanceIds: [
+        ...new Set([
+          ...(node.provenanceIds ?? []),
+          ...(promotion.sourceEvidence ?? []).map((evidence) => evidence.sourceId),
+        ]),
+      ],
+    });
+    extensionSources.set(promotion.id, "content/curriculum-v2/knowledge-extension.json#promotions");
+  }
+  const relationshipKeys = new Set();
+  const connectedExtensionIds = new Set();
+  for (const relationship of graph.graphProjection.edges)
+    if (
+      relationship.kind === "prerequisite_of" &&
+      relationship.reviewState === "accepted" &&
+      nodes.has(relationship.sourceId) &&
+      nodes.has(relationship.targetId)
+    ) {
+      if (extensionSources.has(relationship.sourceId))
+        connectedExtensionIds.add(relationship.sourceId);
+      if (extensionSources.has(relationship.targetId))
+        connectedExtensionIds.add(relationship.targetId);
+    }
+  for (const relationship of extension.relationships ?? []) {
+    if (relationship.kind !== "prerequisite_of")
+      throw new Error(
+        `${relationship.sourceId}->${relationship.targetId}: extension relationship must be prerequisite_of`,
+      );
+    if (!nodes.has(relationship.sourceId) || !nodes.has(relationship.targetId))
+      throw new Error(
+        `${relationship.sourceId}->${relationship.targetId}: extension relationship endpoint is missing`,
+      );
+    if (typeof relationship.rationale !== "string" || relationship.rationale.length < 40)
+      throw new Error(
+        `${relationship.sourceId}->${relationship.targetId}: extension relationship needs a reviewed rationale`,
+      );
+    const key = `${relationship.kind}:${relationship.sourceId}->${relationship.targetId}`;
+    if (relationshipKeys.has(key)) throw new Error(`${key}: duplicate extension relationship`);
+    relationshipKeys.add(key);
+    if (extensionSources.has(relationship.sourceId))
+      connectedExtensionIds.add(relationship.sourceId);
+    if (extensionSources.has(relationship.targetId))
+      connectedExtensionIds.add(relationship.targetId);
+  }
+  for (const id of extensionSources.keys())
+    if (!connectedExtensionIds.has(id))
+      throw new Error(`${id}: accepted extension node has no reviewed knowledge relationship`);
+  return { nodes, extensionSources, relationships: extension.relationships ?? [] };
+}
+
+function canonicalKnowledge(graph, graphText, mappings, extension) {
+  const conceptIds = new Set([
+    ...mappings.bookPages.flatMap((mapping) => mapping.conceptIds),
+    ...mappings.mainmatterExercises.flatMap((mapping) => mapping.conceptIds),
+  ]);
+  const outcomeIds = new Set([
+    ...mappings.bookPages.flatMap((mapping) => mapping.outcomeIds),
+    ...mappings.mainmatterExercises.flatMap((mapping) => mapping.outcomeIds),
+  ]);
+  const { nodes, extensionSources, relationships } = validateKnowledgeExtension(
+    graph,
+    graphText,
+    extension,
+  );
+  const select = (ids, kind) =>
+    [...ids].sort().map((id) => {
+      const node = nodes.get(id);
+      if (!node || node.kind !== kind || node.reviewState !== "accepted")
+        throw new Error(`${id}: canonical ${kind} node is missing or not accepted`);
+      return {
+        id,
+        title: node.title,
+        summary: node.summary,
+        reviewState: node.reviewState,
+        mappingSource:
+          extensionSources.get(id) ??
+          `${mappings.canonicalGraph.path}#${mappings.canonicalGraph.projection}`,
+      };
+    });
+  return {
+    concepts: select(conceptIds, "concept"),
+    outcomes: select(outcomeIds, "learning_outcome"),
+    relationships,
+  };
 }
 
 export async function buildRelease() {
-  const book = makeBook();
   const mainmatterRaw = JSON.parse(await readFile(resolve(contentDir, "mainmatter.json"), "utf8"));
-  const mainmatter = normalizeMainmatter(mainmatterRaw);
-  const releaseSources = sources.map((source) =>
-    source.id === "SRC-MAINMATTER-100"
-      ? {
-          ...source,
-          snapshotFiles: mainmatterRaw.sharedWorkspaceFiles ?? [],
-          solutionSnapshotOverrides: mainmatterSolutionWorkspaceOverrides,
-          snapshotMetadata: {
-            upstreamExerciseCount: mainmatterRaw.upstreamExerciseCount,
-            arcs: mainmatterRaw.arcs,
-            starterCommit: "57d145e6d393dfffeadb97fc61e814255c3b6ffe",
-            solutionCommit: "e77613749a55c19c63cf78e3b30cafc007f53dab",
-          },
-        }
-      : source,
+  const rustBookDocumentText = await readFile(rustBookPath, "utf8");
+  const mainmatterDocumentText = await readFile(mainmatterDocumentsPath, "utf8");
+  const knowledgeMappingText = await readFile(knowledgeMappingsPath, "utf8");
+  const knowledgeExtensionText = await readFile(knowledgeExtensionPath, "utf8");
+  const mainmatterPilotContractText = await readFile(mainmatterPilotContractsPath, "utf8");
+  const canonicalGraphText = await readFile(canonicalGraphPath, "utf8");
+  const mainmatterReadme = await readFile(resolve(contentDir, "sources/mainmatter/README.md"));
+  const rustBookDocuments = JSON.parse(rustBookDocumentText);
+  const mainmatterDocuments = JSON.parse(mainmatterDocumentText);
+  const knowledgeMappings = JSON.parse(knowledgeMappingText);
+  const knowledgeExtension = JSON.parse(knowledgeExtensionText);
+  const mainmatterPilotContracts = JSON.parse(mainmatterPilotContractText);
+  const canonicalGraph = JSON.parse(canonicalGraphText);
+  const book = makeBook(rustBookDocuments, knowledgeMappings);
+  const knowledge = canonicalKnowledge(
+    canonicalGraph,
+    canonicalGraphText,
+    knowledgeMappings,
+    knowledgeExtension,
   );
+  const integrity = mainmatterIntegrity(mainmatterRaw);
+  const mainmatter = normalizeMainmatter(
+    mainmatterRaw,
+    integrity,
+    knowledgeMappings,
+    mainmatterPilotContracts,
+    mainmatterDocuments,
+  );
+  const releaseSources = sources.map((source) => {
+    if (source.id === "SRC-RUST-BOOK-STABLE")
+      return {
+        ...source,
+        sourceCommit: rustBookCommit,
+        sourcePath: "content/curriculum-v2/sources/rust-book/src/SUMMARY.md",
+        documentPath: "content/curriculum-v2/rust-book.json",
+        documentSha256: sha256(rustBookDocumentText),
+        snapshotMetadata: {
+          summaryEntryCount: 111,
+          selectedPageCount: rustBookDocuments.selectedPageCount,
+          excludedPages: rustBookDocuments.excludedPages,
+          codeBlockCount: rustBookDocuments.pages.reduce(
+            (count, page) => count + page.codeBlockCount,
+            0,
+          ),
+          referencedAssetCount: new Set(
+            rustBookDocuments.pages.flatMap((page) => page.assets.map((asset) => asset.path)),
+          ).size,
+          includeDirectiveCount: rustBookDocuments.pages.reduce(
+            (count, page) => count + page.includes.length,
+            0,
+          ),
+          notices: ["LICENSE-MIT", "LICENSE-APACHE", "COPYRIGHT"],
+        },
+      };
+    if (source.id === "SRC-MAINMATTER-100")
+      return {
+        ...source,
+        sourceCommit: mainmatterStarterCommit,
+        sourcePath: "content/curriculum-v2/mainmatter.json",
+        documentPath: "content/curriculum-v2/mainmatter-documents.json",
+        documentSha256: sha256(mainmatterDocumentText),
+        snapshotFiles: mainmatterRaw.sharedWorkspaceFiles ?? [],
+        solutionSnapshotOverrides: mainmatterSolutionWorkspaceOverrides,
+        resources: mainmatterDocuments.resources,
+        snapshotMetadata: {
+          upstreamExerciseCount: mainmatterRaw.upstreamExerciseCount,
+          arcs: mainmatterRaw.arcs,
+          starterCommit: mainmatterStarterCommit,
+          solutionCommit: mainmatterSolutionCommit,
+          packageHashAlgorithm: integrity.algorithm,
+          starterSharedWorkspaceSha256: integrity.starterSharedWorkspaceSha256,
+          solutionSharedWorkspaceSha256: integrity.solutionSharedWorkspaceSha256,
+          sourceDocumentCount: mainmatterDocuments.exerciseCount,
+          pilotContractCount: mainmatterPilotContracts.pilots?.length ?? 0,
+          pilotContractSha256: sha256(mainmatterPilotContractText),
+          readmePath: "content/curriculum-v2/sources/mainmatter/README.md",
+          readmeSha256: sha256(mainmatterReadme),
+        },
+      };
+    return source;
+  });
   const interview = makeInterviewExercises();
   const { projects, stages } = makeProjects();
   const exercises = [...mainmatter, ...interview];
@@ -1347,24 +2296,24 @@ export async function buildRelease() {
         reason: `Apply the lesson model in ${stage.projectId}'s cumulative workspace.`,
       });
   }
-  const firstMainmatter = mainmatter[0];
-  const firstInterview = interview[0];
   for (const lesson of book.lessons) {
     if (lesson.practiceBridge.length === 0) {
-      const fallback = lesson.moduleId <= moduleId(3) ? firstMainmatter : firstInterview;
-      lesson.practiceBridge.push({
-        exerciseId: fallback.id,
-        requirement: "stretch",
-        whyNow:
-          "Use this as retrieval practice: solve only after its listed prerequisites are ready.",
-      });
+      const mappedPractice = mainmatter.find((exercise) =>
+        exercise.conceptIds.some((conceptId) => lesson.conceptIds.includes(conceptId)),
+      );
+      if (mappedPractice)
+        lesson.practiceBridge.push({
+          exerciseId: mappedPractice.id,
+          requirement: "stretch",
+          whyNow: `This exercise shares the reviewed ${mappedPractice.conceptIds[0]} concept mapping with the page.`,
+        });
     }
     if (lesson.projectTransfer.length === 0) {
       const stage =
         stages[
           Math.min(
             stages.length - 1,
-            Math.floor(((lesson.moduleId.slice(-2) - 1) * stages.length) / 21),
+            Math.floor(((lesson.pageSequence - 1) * stages.length) / book.lessons.length),
           )
         ];
       lesson.projectTransfer.push({
@@ -1381,59 +2330,176 @@ export async function buildRelease() {
       .map((p) => p.exerciseId);
 
   const edges = [];
-  const addEdge = (sourceId, targetId, kind, rationale) =>
+  const edgeIds = new Set();
+  const edgeProvenance = (sourceId, targetId) => {
+    if ([sourceId, targetId].some((id) => id.startsWith("mainmatter-")))
+      return "SRC-MAINMATTER-100";
+    if ([sourceId, targetId].some((id) => id.startsWith("LESSON-BOOK-")))
+      return "SRC-RUST-BOOK-STABLE";
+    if ([sourceId, targetId].some((id) => /^(CON|OUT)-/.test(id)))
+      return "knowledge/feed/generated/tutor-feed.json#graphProjection";
+    return "SRC-RUST-TUTOR-ORIGINAL";
+  };
+  const addEdge = (sourceId, targetId, kind, rationale) => {
+    const id = `EDGE-${kind.toUpperCase().replaceAll(/[^A-Z0-9]+/g, "-")}-${sourceId}-TO-${targetId}`;
+    if (edgeIds.has(id)) throw new Error(`duplicate semantic edge ${id}`);
+    edgeIds.add(id);
     edges.push({
-      id: `EDGE-${String(edges.length + 1).padStart(5, "0")}`,
+      id,
+      aliases: [`EDGE-${String(edges.length + 1).padStart(5, "0")}`],
       sourceId,
       targetId,
       kind,
       rationale,
+      provenance: edgeProvenance(sourceId, targetId),
     });
-  for (const lesson of book.lessons)
-    for (const prerequisite of lesson.prerequisiteIds)
+  };
+  const canonicalIds = new Set([
+    ...knowledge.concepts.map((concept) => concept.id),
+    ...knowledge.outcomes.map((outcome) => outcome.id),
+  ]);
+  const bookMappingById = new Map(
+    knowledgeMappings.bookPages.map((mapping) => [mapping.pageId, mapping]),
+  );
+  const exerciseMappingById = new Map(
+    knowledgeMappings.mainmatterExercises.map((mapping) => [mapping.exerciseId, mapping]),
+  );
+  const mappedEndpoint = (mapping, id) => {
+    const endpoint = mapping?.endpointRationales.find((candidate) => candidate.id === id);
+    if (!endpoint) throw new Error(`${mapping?.pageId ?? mapping?.exerciseId}: missing ${id}`);
+    return endpoint;
+  };
+  for (const edge of canonicalGraph.graphProjection.edges) {
+    if (
+      edge.kind === "prerequisite_of" &&
+      edge.reviewState === "accepted" &&
+      canonicalIds.has(edge.sourceId) &&
+      canonicalIds.has(edge.targetId)
+    )
+      addEdge(edge.sourceId, edge.targetId, "prerequisite_of", edge.rationale);
+  }
+  for (const edge of knowledge.relationships)
+    if (canonicalIds.has(edge.sourceId) && canonicalIds.has(edge.targetId))
+      addEdge(edge.sourceId, edge.targetId, edge.kind, edge.rationale);
+  for (const [index, lesson] of book.lessons.entries()) {
+    const mapping = bookMappingById.get(lesson.id);
+    addEdge(
+      lesson.id,
+      lesson.moduleId,
+      "part_of",
+      `${lesson.title} is contained by its reviewed Book track container.`,
+    );
+    addEdge(
+      lesson.id,
+      "SRC-RUST-BOOK-STABLE",
+      "part_of",
+      `${lesson.title} is sourced from the pinned stable Rust Book snapshot.`,
+    );
+    for (const conceptId of lesson.conceptIds) {
+      const endpoint = mappedEndpoint(mapping, conceptId);
+      addEdge(lesson.id, conceptId, endpoint.relation, endpoint.reason);
+    }
+    for (const outcomeId of lesson.outcomeIds) {
+      const endpoint = mappedEndpoint(mapping, outcomeId);
+      addEdge(lesson.id, outcomeId, endpoint.relation, endpoint.reason);
+    }
+    const next = book.lessons[index + 1];
+    if (next)
       addEdge(
-        prerequisite,
         lesson.id,
-        "prerequisite",
-        `${prerequisite} prepares the language model required by ${lesson.id}.`,
+        next.id,
+        "precedes",
+        "The pinned SUMMARY.md places this page immediately before the target for display navigation only.",
       );
-  for (const exercise of exercises)
+    for (const transfer of lesson.projectTransfer)
+      addEdge(lesson.id, transfer.stageId, "transfers_to", transfer.reason);
+  }
+  for (const [index, exercise] of mainmatter.entries()) {
+    const next = mainmatter[index + 1];
+    if (next)
+      addEdge(
+        exercise.id,
+        next.id,
+        "precedes",
+        `The pinned Mainmatter sequence places ${exercise.upstreamSequence} immediately before ${next.upstreamSequence}; this is soft display navigation and never a knowledge prerequisite.`,
+      );
+  }
+  for (const exercise of exercises) {
     addEdge(
-      exercise.lessonId,
       exercise.id,
+      exercise.lessonId,
       "practices",
-      `${exercise.title} turns the lesson model into executable evidence.`,
+      `${exercise.title} practices the linked lesson model through executable evidence.`,
     );
-  for (const stage of stages) {
     addEdge(
-      stage.relatedLessonIds[0],
-      stage.id,
-      "applies-in",
-      `${stage.title} applies the lesson at project scale.`,
+      exercise.id,
+      exercise.moduleId,
+      "part_of",
+      `${exercise.title} belongs to its curriculum module; sequence remains advisory.`,
     );
+    if (exercise.family === "mainmatter") {
+      const mapping = exerciseMappingById.get(exercise.id);
+      addEdge(
+        exercise.id,
+        "SRC-MAINMATTER-100",
+        "part_of",
+        `${exercise.title} is sourced from the pinned noncommercial Mainmatter pack.`,
+      );
+      for (const conceptId of exercise.conceptIds) {
+        const endpoint = mappedEndpoint(mapping, conceptId);
+        addEdge(exercise.id, conceptId, endpoint.relation, endpoint.reason);
+      }
+      for (const outcomeId of exercise.outcomeIds) {
+        const endpoint = mappedEndpoint(mapping, outcomeId);
+        addEdge(exercise.id, outcomeId, endpoint.relation, endpoint.reason);
+      }
+    }
+  }
+  for (const stage of stages) {
+    const transferId = `EDGE-TRANSFERS-TO-${stage.relatedLessonIds[0]}-TO-${stage.id}`;
+    if (!edgeIds.has(transferId))
+      addEdge(
+        stage.relatedLessonIds[0],
+        stage.id,
+        "transfers_to",
+        `${stage.title} applies the lesson at project scale.`,
+      );
     if (stage.predecessorStageId)
       addEdge(
-        stage.predecessorStageId,
         stage.id,
-        "continues",
+        stage.predecessorStageId,
+        "stage_after",
         "The cumulative workspace and regression contract continue in this stage.",
       );
     addEdge(
-      stage.projectId,
       stage.id,
-      "contains",
+      stage.projectId,
+      "part_of",
       `${stage.projectId} contains this ordered milestone.`,
     );
   }
 
   return {
     schemaVersion: 2,
+    // The release ID is stable so lesson aliases and imported graph rows keep
+    // resolving; the version moves with each reviewed content change.
     releaseId: "CURRICULUM-V2-2026-07-22",
-    version: "2.0.0",
+    version: "2.1.0",
     generatedAt: "2026-07-22T00:00:00Z",
-    minimumToolchain: "Rust 1.90; Cargo edition 2024",
+    minimumToolchain: "Rust 1.97.1; Cargo edition 2024",
     aliases: book.aliases,
     sources: releaseSources,
+    knowledgeMapping: {
+      path: "content/curriculum-v2/knowledge-mappings.json",
+      sha256: sha256(knowledgeMappingText),
+      canonicalGraphPath: knowledgeMappings.canonicalGraph.path,
+      canonicalGraphSha256: sha256(canonicalGraphText),
+      extensionPath: "content/curriculum-v2/knowledge-extension.json",
+      extensionSha256: sha256(knowledgeExtensionText),
+    },
+    concepts: knowledge.concepts,
+    outcomes: knowledge.outcomes,
+    library: libraryCatalog(),
     modules: book.modules,
     lessons: book.lessons,
     exercises,
@@ -1442,34 +2508,50 @@ export async function buildRelease() {
     edges,
     edgeKinds: [
       {
-        kind: "prerequisite",
+        kind: "prerequisite_of",
         label: "Prepares",
         direction: "directed",
-        description: "The source must be learned before the target.",
+        description:
+          "Reviewed knowledge required before the target; the only edge used for prerequisite closure.",
       },
       {
         kind: "practices",
         label: "Practices",
         direction: "directed",
-        description: "The target provides executable practice for the source.",
+        description:
+          "The source rehearses or applies the target knowledge in guided or executable practice.",
       },
       {
-        kind: "applies-in",
-        label: "Applies in",
+        kind: "assesses",
+        label: "Assesses",
         direction: "directed",
-        description: "The source lesson is applied by the target project stage.",
+        description: "A committed check or evaluator contract measures an observable outcome.",
       },
       {
-        kind: "continues",
-        label: "Continues",
+        kind: "part_of",
+        label: "Part of",
         direction: "directed",
-        description: "The target stage extends the source checkpoint.",
+        description: "The source belongs to the target source pack, container, module, or project.",
       },
       {
-        kind: "contains",
-        label: "Contains",
+        kind: "stage_after",
+        label: "Stage after",
         direction: "directed",
-        description: "The source project contains the target stage.",
+        description:
+          "The source stage continues the target stage without becoming a knowledge prerequisite.",
+      },
+      {
+        kind: "transfers_to",
+        label: "Transfers to",
+        direction: "directed",
+        description:
+          "Knowledge or evidence from the source is applied at the target project stage.",
+      },
+      {
+        kind: "precedes",
+        label: "Precedes",
+        direction: "directed",
+        description: "Display and navigation order only; excluded from prerequisite closure.",
       },
     ],
   };
@@ -1478,13 +2560,32 @@ export async function buildRelease() {
 export const stableJson = (value) => `${JSON.stringify(value)}\n`;
 
 async function main() {
+  const check = process.argv.includes("--check");
+  await compileSourceDocuments({ check });
+  // This artifact is small enough for Biome to check, so generate the same
+  // readable shape the formatter expects. `release.json` stays compact because
+  // it is intentionally excluded from formatting.
+  const nextSourceManifest = `${JSON.stringify(await buildSourceManifest(), null, 2)}\n`;
   const release = await buildRelease();
   const next = stableJson(release);
-  if (process.argv.includes("--check")) {
+  const nextLibrary = `${JSON.stringify(release.library, null, 2)}\n`;
+  if (check) {
     const current = await readFile(releasePath, "utf8").catch(() => "");
     if (current !== next)
       throw new Error(
         "content/curriculum-v2/release.json is stale; run node scripts/build-curriculum.mjs",
+      );
+    // Both files are build artifacts, so both belong in the determinism guard;
+    // checking only release.json let a broken library export ship unnoticed.
+    const currentLibrary = await readFile(libraryPath, "utf8").catch(() => "");
+    if (currentLibrary !== nextLibrary)
+      throw new Error(
+        "apps/web/src/data/reference-library.json is stale; run node scripts/build-curriculum.mjs",
+      );
+    const currentSourceManifest = await readFile(sourceManifestPath, "utf8").catch(() => "");
+    if (currentSourceManifest !== nextSourceManifest)
+      throw new Error(
+        "content/curriculum-v2/source-manifest.json is stale; run node scripts/build-curriculum.mjs",
       );
     console.log(
       `curriculum release is deterministic (${release.modules.length} modules, ${release.exercises.length} exercises, ${release.stages.length} stages)`,
@@ -1492,7 +2593,11 @@ async function main() {
     return;
   }
   await writeFile(releasePath, next);
+  await writeFile(sourceManifestPath, nextSourceManifest);
+  await mkdir(dirname(libraryPath), { recursive: true });
+  await writeFile(libraryPath, nextLibrary);
   console.log(`wrote ${releasePath}`);
+  console.log(`wrote ${libraryPath}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))

@@ -9,7 +9,13 @@
     "use": "link-only",
     "kind": "book",
     "level": "foundation",
-    "blurb": "The canonical guided tour. This curriculum follows its chapter order so every module has an authoritative long-form counterpart."
+    "blurb": "The canonical guided tour. This curriculum follows its chapter order so every module has an authoritative long-form counterpart.",
+    "topics": [
+      "getting-started",
+      "ownership",
+      "traits",
+      "concurrency"
+    ]
   },
   {
     "id": "LIB-RBE",
@@ -21,7 +27,12 @@
     "use": "link-only",
     "kind": "book",
     "level": "foundation",
-    "blurb": "Runnable snippets for the same concepts. Use it when you want to see the shape of the code before reading the argument for it."
+    "blurb": "Runnable snippets for the same concepts. Use it when you want to see the shape of the code before reading the argument for it.",
+    "topics": [
+      "getting-started",
+      "syntax",
+      "examples"
+    ]
   },
   {
     "id": "LIB-RUSTLINGS",
@@ -33,7 +44,11 @@
     "use": "link-only",
     "kind": "exercises",
     "level": "practice",
-    "blurb": "Small compiler-error-driven fixes. Closest external analogue to this app's terminal work; good for extra repetitions."
+    "blurb": "Small compiler-error-driven fixes. Closest external analogue to this app's terminal work; good for extra repetitions.",
+    "topics": [
+      "exercises",
+      "compiler-errors"
+    ]
   },
   {
     "id": "LIB-STD",
@@ -44,7 +59,11 @@
     "use": "link-only",
     "kind": "api",
     "level": "reference",
-    "blurb": "Primary API reference. Every collection, trait, and guarantee named in a lesson is specified here first."
+    "blurb": "Primary API reference. Every collection, trait, and guarantee named in a lesson is specified here first.",
+    "topics": [
+      "api",
+      "collections"
+    ]
   },
   {
     "id": "LIB-REFERENCE",
@@ -56,7 +75,10 @@
     "use": "link-only",
     "kind": "specification",
     "level": "reference",
-    "blurb": "Language-level specification. Reach for it when you need the rule rather than an explanation of the rule."
+    "blurb": "Language-level specification. Reach for it when you need the rule rather than an explanation of the rule.",
+    "topics": [
+      "specification"
+    ]
   },
   {
     "id": "LIB-ERROR-INDEX",
@@ -67,7 +89,10 @@
     "use": "link-only",
     "kind": "reference",
     "level": "reference",
-    "blurb": "One page per E-code with a minimal reproduction and repair. The compiler-error nodes in the concept map link straight here."
+    "blurb": "One page per E-code with a minimal reproduction and repair. The compiler-error nodes in the concept map link straight here.",
+    "topics": [
+      "compiler-errors"
+    ]
   },
   {
     "id": "LIB-CARGO",
@@ -79,7 +104,12 @@
     "use": "link-only",
     "kind": "tooling",
     "level": "reference",
-    "blurb": "Manifest keys, profiles, workspaces, features, and publishing. The authority behind every cargo command this app runs."
+    "blurb": "Manifest keys, profiles, workspaces, features, and publishing. The authority behind every cargo command this app runs.",
+    "topics": [
+      "tooling",
+      "modules",
+      "testing"
+    ]
   },
   {
     "id": "LIB-EDITION",
@@ -90,7 +120,10 @@
     "use": "link-only",
     "kind": "reference",
     "level": "reference",
-    "blurb": "What changed across 2015/2018/2021/2024. Read it before trusting an older blog post or Stack Overflow answer."
+    "blurb": "What changed across 2015/2018/2021/2024. Read it before trusting an older blog post or Stack Overflow answer.",
+    "topics": [
+      "language-evolution"
+    ]
   },
   {
     "id": "LIB-COMPREHENSIVE",
@@ -102,7 +135,13 @@
     "use": "link-only",
     "kind": "course",
     "level": "foundation",
-    "blurb": "A dense multi-day course with speaker notes, plus bare-metal, Android, and Chromium tracks the Book never covers."
+    "blurb": "A dense multi-day course with speaker notes, plus bare-metal, Android, and Chromium tracks the Book never covers.",
+    "topics": [
+      "getting-started",
+      "ownership",
+      "concurrency",
+      "unsafe"
+    ]
   },
   {
     "id": "LIB-COOKBOOK",
@@ -114,7 +153,11 @@
     "use": "link-only",
     "kind": "recipes",
     "level": "intermediate",
-    "blurb": "Task-shaped recipes using well-known crates. Useful once you know the language and need the ecosystem's default answer."
+    "blurb": "Task-shaped recipes using well-known crates. Useful once you know the language and need the ecosystem's default answer.",
+    "topics": [
+      "recipes",
+      "ecosystem"
+    ]
   },
   {
     "id": "LIB-PATTERNS",
@@ -126,7 +169,11 @@
     "use": "link-only",
     "kind": "book",
     "level": "intermediate",
-    "blurb": "Idioms, patterns, and named anti-patterns. The vocabulary layer between 'it compiles' and 'a reviewer would accept it'."
+    "blurb": "Idioms, patterns, and named anti-patterns. The vocabulary layer between 'it compiles' and 'a reviewer would accept it'.",
+    "topics": [
+      "idioms",
+      "design"
+    ]
   },
   {
     "id": "LIB-EFFECTIVE",
@@ -137,7 +184,12 @@
     "use": "link-only",
     "kind": "book",
     "level": "intermediate",
-    "blurb": "Thirty-five specific pieces of advice on types, traits, dependencies, and tooling. Commercially published, so this app links to it and never reproduces it."
+    "blurb": "Thirty-five specific pieces of advice on types, traits, dependencies, and tooling. Commercially published, so this app links to it and never reproduces it.",
+    "topics": [
+      "idioms",
+      "traits",
+      "design"
+    ]
   },
   {
     "id": "LIB-API-GUIDELINES",
@@ -149,7 +201,11 @@
     "use": "link-only",
     "kind": "checklist",
     "level": "intermediate",
-    "blurb": "The checklist library authors are held to: naming, interoperability, flexibility, future proofing."
+    "blurb": "The checklist library authors are held to: naming, interoperability, flexibility, future proofing.",
+    "topics": [
+      "idioms",
+      "design"
+    ]
   },
   {
     "id": "LIB-NOMICON",
@@ -161,7 +217,11 @@
     "use": "link-only",
     "kind": "book",
     "level": "advanced",
-    "blurb": "The dark arts of unsafe Rust: aliasing, variance, drop order, and the invariants you now have to uphold by hand."
+    "blurb": "The dark arts of unsafe Rust: aliasing, variance, drop order, and the invariants you now have to uphold by hand.",
+    "topics": [
+      "unsafe",
+      "memory-layout"
+    ]
   },
   {
     "id": "LIB-TOO-MANY-LISTS",
@@ -173,7 +233,12 @@
     "use": "link-only",
     "kind": "book",
     "level": "advanced",
-    "blurb": "The best available treatment of ownership under pressure. Work it after Chapter 15; it turns smart pointers into muscle memory."
+    "blurb": "The best available treatment of ownership under pressure. Work it after Chapter 15; it turns smart pointers into muscle memory.",
+    "topics": [
+      "smart-pointers",
+      "unsafe",
+      "ownership"
+    ]
   },
   {
     "id": "LIB-ATOMICS",
@@ -184,7 +249,11 @@
     "use": "link-only",
     "kind": "book",
     "level": "advanced",
-    "blurb": "Free online edition covering memory ordering, building your own locks, and what the OS actually does underneath."
+    "blurb": "Free online edition covering memory ordering, building your own locks, and what the OS actually does underneath.",
+    "topics": [
+      "concurrency",
+      "atomics"
+    ]
   },
   {
     "id": "LIB-ASYNC",
@@ -196,7 +265,10 @@
     "use": "link-only",
     "kind": "book",
     "level": "advanced",
-    "blurb": "Futures, executors, pinning, and cancellation from first principles rather than from one runtime's API surface."
+    "blurb": "Futures, executors, pinning, and cancellation from first principles rather than from one runtime's API surface.",
+    "topics": [
+      "async"
+    ]
   },
   {
     "id": "LIB-TOKIO",
@@ -208,7 +280,11 @@
     "use": "link-only",
     "kind": "tutorial",
     "level": "advanced",
-    "blurb": "The concrete counterpart to the async book: tasks, channels, select, shared state, and graceful shutdown in a real runtime."
+    "blurb": "The concrete counterpart to the async book: tasks, channels, select, shared state, and graceful shutdown in a real runtime.",
+    "topics": [
+      "async",
+      "networking"
+    ]
   },
   {
     "id": "LIB-MACROS",
@@ -220,7 +296,10 @@
     "use": "link-only",
     "kind": "book",
     "level": "advanced",
-    "blurb": "macro_rules! from fragment specifiers to hygiene, then the bridge into procedural macros."
+    "blurb": "macro_rules! from fragment specifiers to hygiene, then the bridge into procedural macros.",
+    "topics": [
+      "macros"
+    ]
   },
   {
     "id": "LIB-PERF",
@@ -232,7 +311,10 @@
     "use": "link-only",
     "kind": "book",
     "level": "advanced",
-    "blurb": "Profiling first, then measured wins: allocation, hashing, bounds checks, build configuration, and benchmarking discipline."
+    "blurb": "Profiling first, then measured wins: allocation, hashing, bounds checks, build configuration, and benchmarking discipline.",
+    "topics": [
+      "performance"
+    ]
   },
   {
     "id": "LIB-RUST-QUIZ",
@@ -244,7 +326,11 @@
     "use": "link-only",
     "kind": "quiz",
     "level": "advanced",
-    "blurb": "Short programs with surprising output and a full explanation. Excellent calibration for how well you actually read Rust."
+    "blurb": "Short programs with surprising output and a full explanation. Excellent calibration for how well you actually read Rust.",
+    "topics": [
+      "quizzes",
+      "language-edge-cases"
+    ]
   },
   {
     "id": "LIB-ALGORITHMS",
@@ -256,7 +342,11 @@
     "use": "link-only",
     "kind": "code",
     "level": "practice",
-    "blurb": "Reference implementations for classic algorithms in idiomatic-ish Rust. Compare against your own after you have solved a pattern."
+    "blurb": "Reference implementations for classic algorithms in idiomatic-ish Rust. Compare against your own after you have solved a pattern.",
+    "topics": [
+      "algorithms",
+      "code-reading"
+    ]
   },
   {
     "id": "LIB-EXERCISM",
@@ -268,6 +358,965 @@
     "use": "link-only",
     "kind": "exercises",
     "level": "practice",
-    "blurb": "Around a hundred graded exercises with published community solutions — the widest source of alternative idiom for a solved problem."
+    "blurb": "Around a hundred graded exercises with published community solutions — the widest source of alternative idiom for a solved problem.",
+    "topics": [
+      "exercises",
+      "mentoring"
+    ]
+  },
+  {
+    "id": "LIB-LEARN-HUB",
+    "title": "Learn Rust (rust-lang.org)",
+    "author": "The Rust Project Developers",
+    "url": "https://www.rust-lang.org/learn",
+    "repo": "https://github.com/rust-lang/www.rust-lang.org",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "hub",
+    "level": "foundation",
+    "topics": [
+      "getting-started"
+    ],
+    "blurb": "The project's own index of official learning material. Start here to see what is canonical before trusting a third-party summary."
+  },
+  {
+    "id": "LIB-RUSTC-BOOK",
+    "title": "The rustc Book",
+    "author": "The Rust Project Developers",
+    "url": "https://doc.rust-lang.org/rustc/",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "reference",
+    "topics": [
+      "tooling",
+      "lints",
+      "targets"
+    ],
+    "blurb": "Compiler flags, lint levels, codegen options, and platform support. Read the lints chapter before you reach for #[allow]."
+  },
+  {
+    "id": "LIB-RUSTDOC-BOOK",
+    "title": "The rustdoc Book",
+    "author": "The Rust Project Developers",
+    "url": "https://doc.rust-lang.org/rustdoc/",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "reference",
+    "topics": [
+      "documentation",
+      "testing",
+      "modules"
+    ],
+    "blurb": "How doc comments, intra-doc links, and doctests work. Doctests are a second test suite most beginners never switch on."
+  },
+  {
+    "id": "LIB-CLIPPY-BOOK",
+    "title": "Clippy Documentation",
+    "author": "The Rust Project Developers",
+    "url": "https://doc.rust-lang.org/clippy/",
+    "repo": "https://github.com/rust-lang/rust-clippy",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "reference",
+    "topics": [
+      "tooling",
+      "lints",
+      "idioms"
+    ],
+    "blurb": "Configuring and running Clippy, lint groups, and how to justify an allow. Pairs with the searchable lint list dataset below."
+  },
+  {
+    "id": "LIB-STYLE-GUIDE",
+    "title": "The Rust Style Guide",
+    "author": "The Rust Project Developers",
+    "url": "https://doc.rust-lang.org/style-guide/",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "reference",
+    "level": "reference",
+    "topics": [
+      "idioms",
+      "tooling"
+    ],
+    "blurb": "The formatting rules rustfmt implements, with the reasoning. Useful when a formatting choice looks arbitrary."
+  },
+  {
+    "id": "LIB-RUSTFMT",
+    "title": "rustfmt Configuration",
+    "author": "The Rust Project Developers",
+    "url": "https://rust-lang.github.io/rustfmt/",
+    "repo": "https://github.com/rust-lang/rustfmt",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "reference",
+    "topics": [
+      "tooling"
+    ],
+    "blurb": "Every rustfmt.toml option with before/after examples, filterable by stable versus unstable."
+  },
+  {
+    "id": "LIB-UNSTABLE-BOOK",
+    "title": "The Unstable Book",
+    "author": "The Rust Project Developers",
+    "url": "https://doc.rust-lang.org/unstable-book/",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "reference",
+    "level": "advanced",
+    "topics": [
+      "nightly",
+      "language-evolution"
+    ],
+    "blurb": "Nightly-only features and their tracking issues. Read it to understand where the language is going, not to build on it."
+  },
+  {
+    "id": "LIB-RFCS",
+    "title": "The Rust RFC Book",
+    "author": "The Rust Project Developers",
+    "url": "https://rust-lang.github.io/rfcs/",
+    "repo": "https://github.com/rust-lang/rfcs",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "design-history",
+    "level": "advanced",
+    "topics": [
+      "language-evolution",
+      "design"
+    ],
+    "blurb": "The accepted design documents behind every major feature. An RFC's 'Motivation' and 'Alternatives' sections explain why a rule is the way it is."
+  },
+  {
+    "id": "LIB-FLS",
+    "title": "The FLS (Rust language specification)",
+    "author": "The Rust Project (originally Ferrous Systems and AdaCore)",
+    "url": "https://rust-lang.github.io/fls/",
+    "repo": "https://github.com/rust-lang/fls",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "specification",
+    "level": "reference",
+    "topics": [
+      "specification"
+    ],
+    "blurb": "A rigorously structured specification of Rust, maintained by the Rust project since 2025. Numbered paragraphs make it the most citable language reference."
+  },
+  {
+    "id": "LIB-UCG",
+    "title": "Unsafe Code Guidelines Reference",
+    "author": "Rust Unsafe Code Guidelines Working Group",
+    "url": "https://rust-lang.github.io/unsafe-code-guidelines/",
+    "repo": "https://github.com/rust-lang/unsafe-code-guidelines",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "specification",
+    "level": "advanced",
+    "topics": [
+      "unsafe",
+      "memory-layout"
+    ],
+    "blurb": "Layout, validity, and aliasing rules that unsafe code must uphold. Read after the Rustonomicon when you need the precise invariant."
+  },
+  {
+    "id": "LIB-RUSTC-DEV-GUIDE",
+    "title": "Rust Compiler Development Guide",
+    "author": "The Rust Project Developers",
+    "url": "https://rustc-dev-guide.rust-lang.org/",
+    "repo": "https://github.com/rust-lang/rustc-dev-guide",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "advanced",
+    "topics": [
+      "compiler-internals",
+      "borrow-checker"
+    ],
+    "blurb": "How rustc is built: HIR, MIR, type checking, and the borrow checker. The MIR borrow-check chapter shows what 'the borrow checker' literally computes."
+  },
+  {
+    "id": "LIB-FORGE",
+    "title": "Rust Forge",
+    "author": "The Rust Project Developers",
+    "url": "https://forge.rust-lang.org/",
+    "repo": "https://github.com/rust-lang/rust-forge",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "community",
+    "level": "advanced",
+    "topics": [
+      "contributing",
+      "release-process"
+    ],
+    "blurb": "Release trains, team structure, and contribution process. Where to go when you want to contribute to Rust itself."
+  },
+  {
+    "id": "LIB-RUST-ANALYZER",
+    "title": "rust-analyzer Manual",
+    "author": "rust-analyzer contributors",
+    "url": "https://rust-analyzer.github.io/",
+    "repo": "https://github.com/rust-lang/rust-analyzer",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "reference",
+    "topics": [
+      "tooling",
+      "editor"
+    ],
+    "blurb": "Editor setup, assists, and inlay hints. Inlay type hints are the fastest way to see what inference decided."
+  },
+  {
+    "id": "LIB-MIRI",
+    "title": "Miri",
+    "author": "The Rust Project Developers",
+    "url": "https://github.com/rust-lang/miri",
+    "repo": "https://github.com/rust-lang/miri",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "advanced",
+    "topics": [
+      "unsafe",
+      "undefined-behavior",
+      "testing"
+    ],
+    "blurb": "An interpreter that detects undefined behaviour in tests. Run it on any crate that contains unsafe before you believe a safety comment."
+  },
+  {
+    "id": "LIB-PLAYGROUND",
+    "title": "Rust Playground",
+    "author": "The Rust Project Developers",
+    "url": "https://play.rust-lang.org/",
+    "repo": "https://github.com/rust-lang/rust-playground",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tool",
+    "level": "practice",
+    "topics": [
+      "experimentation",
+      "assembly",
+      "mir"
+    ],
+    "blurb": "Run snippets on stable, beta, or nightly and view MIR, LLVM IR, or assembly. Also runs Clippy and Miri on a snippet."
+  },
+  {
+    "id": "LIB-GODBOLT",
+    "title": "Compiler Explorer",
+    "author": "Matt Godbolt and contributors",
+    "url": "https://godbolt.org/",
+    "repo": "https://github.com/compiler-explorer/compiler-explorer",
+    "license": "BSD-2-Clause",
+    "use": "link-only",
+    "kind": "tool",
+    "level": "advanced",
+    "topics": [
+      "performance",
+      "assembly",
+      "zero-cost"
+    ],
+    "blurb": "See the machine code rustc emits side by side with source. It turns 'zero-cost abstraction' from a slogan into something you can check."
+  },
+  {
+    "id": "LIB-BROWN-BOOK",
+    "title": "The Rust Book: Experimental Edition (Brown University)",
+    "author": "Will Crichton, Gavin Gray, Shriram Krishnamurthi (Cognitive Engineering Lab)",
+    "url": "https://rust-book.cs.brown.edu/",
+    "repo": "https://github.com/cognitive-engineering-lab/rust-book",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "foundation",
+    "topics": [
+      "ownership",
+      "quizzes",
+      "retrieval-practice"
+    ],
+    "blurb": "The official Book with embedded quizzes, a redesigned ownership chapter, and 'Ownership Inventory' scenarios. Its quiz data drove published research on how people learn Rust."
+  },
+  {
+    "id": "LIB-RUST-BY-PRACTICE",
+    "title": "Rust By Practice",
+    "author": "sunface and contributors",
+    "url": "https://practice.rs/",
+    "repo": "https://github.com/sunface/rust-by-practice",
+    "license": "CC-BY-4.0",
+    "use": "link-only",
+    "kind": "exercises",
+    "level": "practice",
+    "topics": [
+      "exercises",
+      "ownership",
+      "traits",
+      "async"
+    ],
+    "blurb": "Fill-in and fix-the-bug exercises organised by the same topics as the Book, with published solutions. Good for a second round after each chapter."
+  },
+  {
+    "id": "LIB-100-EXERCISES",
+    "title": "100 Exercises to Learn Rust",
+    "author": "Luca Palmieri (Mainmatter)",
+    "url": "https://rust-exercises.com/100-exercises/",
+    "repo": "https://github.com/mainmatter/100-exercises-to-learn-rust",
+    "license": "CC-BY-NC-4.0",
+    "use": "link-only",
+    "kind": "course",
+    "level": "practice",
+    "topics": [
+      "exercises",
+      "traits",
+      "concurrency",
+      "async"
+    ],
+    "blurb": "A test-driven course built around one ticketing domain. The app already embeds this pack as its Mainmatter practice track; the upstream site has the prose."
+  },
+  {
+    "id": "LIB-EASY-RUST",
+    "title": "Easy Rust",
+    "author": "Dave MacLeod",
+    "url": "https://dhghomon.github.io/easy_rust/",
+    "repo": "https://github.com/Dhghomon/easy_rust",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "book",
+    "level": "foundation",
+    "topics": [
+      "getting-started",
+      "ownership",
+      "collections"
+    ],
+    "blurb": "The whole language in simple English with short examples. A good second explanation when the Book's phrasing does not land."
+  },
+  {
+    "id": "LIB-TOUR",
+    "title": "Tour of Rust",
+    "author": "Richard Anaya and contributors",
+    "url": "https://tourofrust.com/",
+    "repo": "https://github.com/richardanaya/tour_of_rust",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "interactive",
+    "level": "foundation",
+    "topics": [
+      "getting-started",
+      "syntax"
+    ],
+    "blurb": "Bite-sized pages each with a runnable example, translated into many languages. Fast syntax orientation before the deeper chapters."
+  },
+  {
+    "id": "LIB-GENTLE",
+    "title": "A Gentle Introduction to Rust",
+    "author": "Steve Donovan",
+    "url": "https://stevedonovan.github.io/rust-gentle-intro/",
+    "repo": "https://github.com/stevedonovan/gentle-intro",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "book",
+    "level": "foundation",
+    "topics": [
+      "getting-started",
+      "ownership",
+      "errors"
+    ],
+    "blurb": "A pragmatic tour aimed at programmers from other languages, with a candid 'pain points' chapter."
+  },
+  {
+    "id": "LIB-R4CPPP",
+    "title": "Rust for C++ Programmers",
+    "author": "Nick Cameron",
+    "url": "https://github.com/nrc/r4cppp",
+    "repo": "https://github.com/nrc/r4cppp",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "intermediate",
+    "topics": [
+      "ownership",
+      "pointers",
+      "smart-pointers"
+    ],
+    "blurb": "Maps unique_ptr, shared_ptr, and references onto Box, Rc, and borrows. Read it if you already think in C++ ownership terms."
+  },
+  {
+    "id": "LIB-CHEATS",
+    "title": "Rust Language Cheat Sheet",
+    "author": "Ralf Biedert",
+    "url": "https://cheats.rs/",
+    "repo": "https://github.com/ralfbiedert/cheats.rs",
+    "license": "Code snippets CC0-1.0; prose free to read",
+    "use": "link-only",
+    "kind": "reference",
+    "level": "reference",
+    "topics": [
+      "syntax",
+      "memory-layout",
+      "traits"
+    ],
+    "blurb": "Dense one-page reference with memory-layout diagrams for String, Vec, Box, and Rc. Keep it open while doing exercises."
+  },
+  {
+    "id": "LIB-CLI-BOOK",
+    "title": "Command Line Applications in Rust",
+    "author": "Rust CLI Working Group",
+    "url": "https://rust-cli.github.io/book/",
+    "repo": "https://github.com/rust-cli/book",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "book",
+    "level": "intermediate",
+    "topics": [
+      "cli",
+      "errors",
+      "testing",
+      "io"
+    ],
+    "blurb": "A 15-minute CLI tutorial followed by chapters on argument parsing, errors, output, and testing binaries. A natural first real project after chapter 11."
+  },
+  {
+    "id": "LIB-EMBEDDED-BOOK",
+    "title": "The Embedded Rust Book",
+    "author": "Rust Embedded Working Group",
+    "url": "https://docs.rust-embedded.org/book/",
+    "repo": "https://github.com/rust-embedded/book",
+    "license": "Prose CC-BY-SA-4.0; code MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "advanced",
+    "topics": [
+      "embedded",
+      "no-std",
+      "unsafe"
+    ],
+    "blurb": "no_std, peripherals as owned singletons, and interrupts. Shows ownership modelling hardware, not just memory."
+  },
+  {
+    "id": "LIB-DISCOVERY",
+    "title": "Discovery (micro:bit v2)",
+    "author": "Rust Embedded Working Group",
+    "url": "https://docs.rust-embedded.org/discovery-mb2/",
+    "repo": "https://github.com/rust-embedded/discovery-mb2",
+    "license": "Prose CC-BY-4.0; code MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "intermediate",
+    "topics": [
+      "embedded",
+      "hardware"
+    ],
+    "blurb": "A beginner embedded course on an inexpensive micro:bit board, from blinking an LED to serial communication."
+  },
+  {
+    "id": "LIB-EMBEDONOMICON",
+    "title": "The Embedonomicon",
+    "author": "Rust Embedded Working Group",
+    "url": "https://docs.rust-embedded.org/embedonomicon/",
+    "repo": "https://github.com/rust-embedded/embedonomicon",
+    "license": "Prose CC-BY-SA-4.0; code MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "advanced",
+    "topics": [
+      "embedded",
+      "linkers",
+      "no-std"
+    ],
+    "blurb": "Build a no_std program from nothing: linker scripts, the reset handler, and memory layout."
+  },
+  {
+    "id": "LIB-OS-PHIL-OPP",
+    "title": "Writing an OS in Rust",
+    "author": "Philipp Oppermann",
+    "url": "https://os.phil-opp.com/",
+    "repo": "https://github.com/phil-opp/blog_os",
+    "license": "Prose CC-BY-NC-4.0; code MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "advanced",
+    "topics": [
+      "systems",
+      "no-std",
+      "unsafe",
+      "async"
+    ],
+    "blurb": "A step-by-step x86_64 kernel: VGA output, interrupts, paging, heap allocation, and async tasks. The best long project for unsafe and no_std."
+  },
+  {
+    "id": "LIB-WASM-BOOK",
+    "title": "Rust and WebAssembly",
+    "author": "Rust and WebAssembly Working Group (archived)",
+    "url": "https://rustwasm.github.io/docs/book/",
+    "repo": "https://github.com/rustwasm/book",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "intermediate",
+    "topics": [
+      "webassembly",
+      "ffi"
+    ],
+    "blurb": "Game of Life compiled to WebAssembly, with profiling and size optimisation. The organisation is archived, but the model of the JS/Wasm boundary still holds."
+  },
+  {
+    "id": "LIB-SERDE",
+    "title": "Serde",
+    "author": "Erick Tryzelaar, David Tolnay",
+    "url": "https://serde.rs/",
+    "repo": "https://github.com/serde-rs/serde-rs.github.io",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "intermediate",
+    "topics": [
+      "serialization",
+      "traits",
+      "derive"
+    ],
+    "blurb": "How the de facto serialization framework uses traits and derive macros. The data-model page is a masterclass in trait design."
+  },
+  {
+    "id": "LIB-CRITERION",
+    "title": "Criterion.rs User Guide",
+    "author": "Brook Heisler and contributors",
+    "url": "https://bheisler.github.io/criterion.rs/book/",
+    "repo": "https://github.com/bheisler/criterion.rs",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "advanced",
+    "topics": [
+      "performance",
+      "benchmarking"
+    ],
+    "blurb": "Statistics-driven benchmarking. Pair it with the Performance Book so optimisations are measured rather than guessed."
+  },
+  {
+    "id": "LIB-FUZZ-BOOK",
+    "title": "Rust Fuzz Book",
+    "author": "rust-fuzz contributors",
+    "url": "https://rust-fuzz.github.io/book/",
+    "repo": "https://github.com/rust-fuzz/book",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "tooling",
+    "level": "advanced",
+    "topics": [
+      "testing",
+      "fuzzing",
+      "security"
+    ],
+    "blurb": "cargo-fuzz and afl.rs from first target to structure-aware fuzzing. The next step after unit and property tests."
+  },
+  {
+    "id": "LIB-MINI-REDIS",
+    "title": "mini-redis",
+    "author": "Tokio contributors",
+    "url": "https://github.com/tokio-rs/mini-redis",
+    "repo": "https://github.com/tokio-rs/mini-redis",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "code",
+    "level": "advanced",
+    "topics": [
+      "async",
+      "networking",
+      "code-reading"
+    ],
+    "blurb": "An intentionally readable Redis server written to teach Tokio. Read it alongside the Tokio tutorial."
+  },
+  {
+    "id": "LIB-PROC-MACRO-WORKSHOP",
+    "title": "Procedural Macros Workshop",
+    "author": "David Tolnay",
+    "url": "https://github.com/dtolnay/proc-macro-workshop",
+    "repo": "https://github.com/dtolnay/proc-macro-workshop",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "exercises",
+    "level": "advanced",
+    "topics": [
+      "macros",
+      "exercises"
+    ],
+    "blurb": "Five test-driven projects that build real derive, attribute, and function-like macros. The practical sequel to the Little Book of Rust Macros."
+  },
+  {
+    "id": "LIB-ALGO-CLUB",
+    "title": "Rust Algorithm Club",
+    "author": "Weihang Lo and contributors",
+    "url": "https://rust-algo.club/",
+    "repo": "https://github.com/weihanglo/rust-algorithm-club",
+    "license": "Code MIT; articles CC-BY-NC-SA-4.0",
+    "use": "link-only",
+    "kind": "book",
+    "level": "practice",
+    "topics": [
+      "algorithms",
+      "collections"
+    ],
+    "blurb": "Classic algorithms and data structures explained with Rust implementations. Useful beside the interview-practice track."
+  },
+  {
+    "id": "LIB-MS-LEARN",
+    "title": "Take your first steps with Rust (Microsoft Learn)",
+    "author": "Microsoft",
+    "url": "https://learn.microsoft.com/training/paths/rust-first-steps/",
+    "license": "Free online course (Microsoft Learn terms)",
+    "use": "link-only",
+    "kind": "course",
+    "level": "foundation",
+    "topics": [
+      "getting-started",
+      "errors",
+      "testing"
+    ],
+    "blurb": "A free guided learning path with sandboxed exercises. Another voice for the chapter 1–11 material."
+  },
+  {
+    "id": "LIB-RIPGREP",
+    "title": "ripgrep",
+    "author": "Andrew Gallant",
+    "url": "https://github.com/BurntSushi/ripgrep",
+    "repo": "https://github.com/BurntSushi/ripgrep",
+    "license": "MIT OR Unlicense",
+    "use": "link-only",
+    "kind": "code",
+    "level": "advanced",
+    "topics": [
+      "code-reading",
+      "cli",
+      "performance"
+    ],
+    "blurb": "A production command-line tool with exemplary error handling, crate boundaries, and comments. The standard recommendation for 'show me good Rust'."
+  },
+  {
+    "id": "LIB-UUTILS",
+    "title": "uutils coreutils",
+    "author": "uutils contributors",
+    "url": "https://github.com/uutils/coreutils",
+    "repo": "https://github.com/uutils/coreutils",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "code",
+    "level": "intermediate",
+    "topics": [
+      "code-reading",
+      "cli",
+      "io"
+    ],
+    "blurb": "Rust rewrites of ls, cat, wc, and friends. Each utility is small enough to read in one sitting and has a known specification."
+  },
+  {
+    "id": "LIB-STD-SOURCE",
+    "title": "The standard library source",
+    "author": "The Rust Project Developers",
+    "url": "https://github.com/rust-lang/rust/tree/main/library",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "code",
+    "level": "advanced",
+    "topics": [
+      "code-reading",
+      "unsafe",
+      "collections"
+    ],
+    "blurb": "Every std doc page has a 'Source' link. Reading Vec, Option, and RefCell's implementations shows small audited unsafe wrapped in safe APIs."
+  },
+  {
+    "id": "LIB-AXUM-EXAMPLES",
+    "title": "axum examples",
+    "author": "Tokio contributors",
+    "url": "https://github.com/tokio-rs/axum/tree/main/examples",
+    "repo": "https://github.com/tokio-rs/axum",
+    "license": "MIT",
+    "use": "link-only",
+    "kind": "code",
+    "level": "intermediate",
+    "topics": [
+      "web",
+      "async",
+      "code-reading"
+    ],
+    "blurb": "Dozens of small, focused web-service examples (the framework this app's own service uses)."
+  },
+  {
+    "id": "LIB-DATA-UI-TESTS",
+    "title": "rustc UI test suite",
+    "author": "The Rust Project Developers",
+    "url": "https://github.com/rust-lang/rust/tree/main/tests/ui",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "dataset",
+    "level": "advanced",
+    "topics": [
+      "dataset",
+      "compiler-errors",
+      "borrow-checker"
+    ],
+    "blurb": "Thousands of small programs paired with the exact diagnostics rustc must print. The largest corpus of 'predict the compiler error' drills in existence."
+  },
+  {
+    "id": "LIB-DATA-ERROR-CODES",
+    "title": "rustc error-code explanations (source)",
+    "author": "The Rust Project Developers",
+    "url": "https://github.com/rust-lang/rust/tree/main/compiler/rustc_error_codes/src/error_codes",
+    "repo": "https://github.com/rust-lang/rust",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "dataset",
+    "level": "reference",
+    "topics": [
+      "dataset",
+      "compiler-errors"
+    ],
+    "blurb": "One Markdown file per E-code with an erroneous example and a fix: the machine-readable source behind the Error Index."
+  },
+  {
+    "id": "LIB-DATA-CLIPPY-LINTS",
+    "title": "Clippy lint list",
+    "author": "The Rust Project Developers",
+    "url": "https://rust-lang.github.io/rust-clippy/master/index.html",
+    "repo": "https://github.com/rust-lang/rust-clippy",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "dataset",
+    "level": "reference",
+    "topics": [
+      "dataset",
+      "lints",
+      "idioms"
+    ],
+    "blurb": "Over 800 lints, each with 'what it does', 'why is this bad', and a before/after example. Browse one category a week as an idiom curriculum."
+  },
+  {
+    "id": "LIB-DATA-RUSTSEC",
+    "title": "RustSec Advisory Database",
+    "author": "Rust Secure Code Working Group",
+    "url": "https://rustsec.org/advisories/",
+    "repo": "https://github.com/rustsec/advisory-db",
+    "license": "CC0-1.0 (GitHub-imported advisories CC-BY-4.0)",
+    "use": "link-only",
+    "kind": "dataset",
+    "level": "advanced",
+    "topics": [
+      "dataset",
+      "security",
+      "unsafe"
+    ],
+    "blurb": "Every published vulnerability in a crates.io crate. Reading the unsafe-related advisories is a catalogue of real soundness bugs."
+  },
+  {
+    "id": "LIB-DATA-CRATES-DUMP",
+    "title": "crates.io database dump",
+    "author": "crates.io team",
+    "url": "https://crates.io/data-access",
+    "repo": "https://github.com/rust-lang/crates.io",
+    "license": "Access policy CC-BY-4.0; data licences documented in the dump",
+    "use": "link-only",
+    "kind": "dataset",
+    "level": "practice",
+    "topics": [
+      "dataset",
+      "data-engineering",
+      "ecosystem"
+    ],
+    "blurb": "A daily CSV export of crate, version, and dependency metadata. A realistic dataset for your own parsing, graph, and analytics projects."
+  },
+  {
+    "id": "LIB-DATA-RUST-QUIZ-SRC",
+    "title": "Rust Quiz question sources",
+    "author": "David Tolnay",
+    "url": "https://github.com/dtolnay/rust-quiz/tree/master/questions",
+    "repo": "https://github.com/dtolnay/rust-quiz",
+    "license": "CC-BY-SA-4.0",
+    "use": "link-only",
+    "kind": "dataset",
+    "level": "advanced",
+    "topics": [
+      "dataset",
+      "quizzes",
+      "language-edge-cases"
+    ],
+    "blurb": "The source of each Rust Quiz puzzle with its explanation, ready for self-study offline."
+  },
+  {
+    "id": "LIB-AWESOME-RUST",
+    "title": "Awesome Rust",
+    "author": "rust-unofficial contributors",
+    "url": "https://github.com/rust-unofficial/awesome-rust",
+    "repo": "https://github.com/rust-unofficial/awesome-rust",
+    "license": "CC0-1.0",
+    "use": "link-only",
+    "kind": "hub",
+    "level": "reference",
+    "topics": [
+      "ecosystem",
+      "crates"
+    ],
+    "blurb": "The long curated list of Rust applications, libraries, and tools. Use it to find prior art before writing something."
+  },
+  {
+    "id": "LIB-AWESOME-EMBEDDED",
+    "title": "Awesome Embedded Rust",
+    "author": "Rust Embedded Working Group",
+    "url": "https://github.com/rust-embedded/awesome-embedded-rust",
+    "repo": "https://github.com/rust-embedded/awesome-embedded-rust",
+    "license": "CC0-1.0",
+    "use": "link-only",
+    "kind": "hub",
+    "level": "reference",
+    "topics": [
+      "embedded",
+      "ecosystem"
+    ],
+    "blurb": "HALs, board-support crates, drivers, and RTOS options, organised by chip family."
+  },
+  {
+    "id": "LIB-DOCS-RS",
+    "title": "docs.rs",
+    "author": "docs.rs team",
+    "url": "https://docs.rs/",
+    "repo": "https://github.com/rust-lang/docs.rs",
+    "license": "Service; site code MIT",
+    "use": "link-only",
+    "kind": "api",
+    "level": "reference",
+    "topics": [
+      "ecosystem",
+      "documentation"
+    ],
+    "blurb": "API documentation for every published crate version. Read a crate's docs before adding it as a dependency."
+  },
+  {
+    "id": "LIB-TWIR",
+    "title": "This Week in Rust",
+    "author": "This Week in Rust editors",
+    "url": "https://this-week-in-rust.org/",
+    "repo": "https://github.com/rust-lang/this-week-in-rust",
+    "license": "Content CC-BY-SA; code MIT",
+    "use": "link-only",
+    "kind": "newsletter",
+    "level": "intermediate",
+    "topics": [
+      "community",
+      "news"
+    ],
+    "blurb": "The weekly digest of articles, releases, and calls for participation. Skim the 'Crate of the Week' as a gentle ecosystem tour."
+  },
+  {
+    "id": "LIB-RUST-BLOG",
+    "title": "The Rust Blog",
+    "author": "The Rust Project Developers",
+    "url": "https://blog.rust-lang.org/",
+    "repo": "https://github.com/rust-lang/blog.rust-lang.org",
+    "license": "MIT OR Apache-2.0",
+    "use": "link-only",
+    "kind": "newsletter",
+    "level": "intermediate",
+    "topics": [
+      "release-notes",
+      "language-evolution"
+    ],
+    "blurb": "Release announcements every six weeks explain each newly stabilised feature with an example."
+  },
+  {
+    "id": "LIB-USERS-FORUM",
+    "title": "Rust Users Forum",
+    "author": "Rust community",
+    "url": "https://users.rust-lang.org/",
+    "license": "Community forum (see site terms)",
+    "use": "link-only",
+    "kind": "community",
+    "level": "foundation",
+    "topics": [
+      "community",
+      "help"
+    ],
+    "blurb": "The official place to ask for help. Searching it for your exact error message usually finds a worked explanation."
+  },
+  {
+    "id": "LIB-CRUST-OF-RUST",
+    "title": "Crust of Rust (video series)",
+    "author": "Jon Gjengset",
+    "url": "https://www.youtube.com/@jonhoo",
+    "license": "Free to watch",
+    "use": "link-only",
+    "kind": "video",
+    "level": "advanced",
+    "topics": [
+      "lifetimes",
+      "iterators",
+      "smart-pointers",
+      "concurrency",
+      "async"
+    ],
+    "blurb": "Long-form live coding that builds std types from scratch: iterators, smart pointers, channels, atomics. Watch after the matching chapter here."
+  },
+  {
+    "id": "LIB-RUST-VIDEOS",
+    "title": "Rust conference talks",
+    "author": "The Rust Foundation and conference organisers",
+    "url": "https://www.youtube.com/@RustVideos",
+    "license": "Free to watch",
+    "use": "link-only",
+    "kind": "video",
+    "level": "intermediate",
+    "topics": [
+      "community",
+      "design"
+    ],
+    "blurb": "RustConf and other conference talks. Good for how teams use Rust in production and why features were designed as they were."
+  },
+  {
+    "id": "LIB-RESEARCH-OWNERSHIP-MODEL",
+    "title": "A Grounded Conceptual Model for Ownership Types in Rust",
+    "author": "Will Crichton, Gavin Gray, Shriram Krishnamurthi (OOPSLA 2023)",
+    "url": "https://cs.brown.edu/people/sk/Publications/Papers/Published/cgk-grounded-model-rust-ownership/paper.pdf",
+    "license": "Open-access paper",
+    "use": "link-only",
+    "kind": "research",
+    "level": "advanced",
+    "topics": [
+      "ownership",
+      "learning-science"
+    ],
+    "blurb": "The research behind the Brown edition's permissions model of borrowing (read/write/own). If ownership still feels like magic, this model is the fix."
+  },
+  {
+    "id": "LIB-RESEARCH-PROFILING",
+    "title": "Profiling Programming Language Learning",
+    "author": "Will Crichton, Shriram Krishnamurthi (OOPSLA 2024)",
+    "url": "https://cel.cs.brown.edu/paper/profiling-pl-learning/",
+    "license": "Open-access paper",
+    "use": "link-only",
+    "kind": "research",
+    "level": "advanced",
+    "topics": [
+      "learning-science",
+      "quizzes"
+    ],
+    "blurb": "What 1.1 million quiz answers revealed about where Rust learners struggle, and which interventions helped. It shaped this app's question design."
+  },
+  {
+    "id": "LIB-RESEARCH-RUSTBELT",
+    "title": "RustBelt: Securing the Foundations of Rust",
+    "author": "Ralf Jung, Jacques-Henri Jourdan, Robbert Krebbers, Derek Dreyer (POPL 2018)",
+    "url": "https://plv.mpi-sws.org/rustbelt/popl18/",
+    "license": "Open-access paper",
+    "use": "link-only",
+    "kind": "research",
+    "level": "advanced",
+    "topics": [
+      "unsafe",
+      "formal-methods"
+    ],
+    "blurb": "A machine-checked proof that safe Rust plus correctly encapsulated unsafe code is memory safe. The theory behind 'wrap unsafe in a safe API'."
   }
 ]

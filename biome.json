@@ -5,6 +5,7 @@
     "includes": [
       "**",
       "!!apps/web/src/routeTree.gen.ts",
+      "!!apps/web/src/data/reference-library.json",
       "!!target",
       "!!node_modules",
       "!!content/curriculum-v2/mainmatter.json",

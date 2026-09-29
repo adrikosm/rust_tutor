@@ -10,6 +10,7 @@ const primaryRoutes = [
   { to: "/curriculum", label: "Learn", group: "learn" },
   { to: "/practice", label: "Practice", group: "practice" },
   { to: "/review", label: "Review", group: "review" },
+  { to: "/study", label: "Study", group: "study" },
   { to: "/projects", label: "Projects", group: "projects" },
   { to: "/journal", label: "Journal", group: "journal" },
 ] as const;
@@ -40,6 +41,8 @@ function routeIsActive(pathname: string, group: (typeof primaryRoutes)[number]["
       return pathname.startsWith("/practice");
     case "review":
       return pathname.startsWith("/review");
+    case "study":
+      return pathname.startsWith("/study");
     case "projects":
       return pathname.startsWith("/projects");
     case "journal":

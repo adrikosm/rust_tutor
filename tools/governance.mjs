@@ -28,7 +28,7 @@ async function validate() {
   };
 
   const adrIndex = await read("docs/adr/README.md");
-  for (let number = 1; number <= 18; number += 1) {
+  for (let number = 1; number <= 19; number += 1) {
     const id = `ADR-${String(number).padStart(3, "0")}`;
     check(adrIndex.includes(id), `ADR index missing ${id}`);
     const link = adrIndex.match(new RegExp(`\\[${id}\\]\\(([^)]+)\\)`))?.[1];
@@ -167,7 +167,7 @@ async function validate() {
 
   if (errors.length) throw new Error(`Governance validation failed:\n- ${errors.join("\n- ")}`);
   console.log(
-    `Validated E00 governance: 18 ADRs, ${requiredGlossary.length} glossary terms, ${goals.goals.length} goals, ${ledger.sources.length} sources, ${risks.risks.length} risks, and 2 gated issue templates.`,
+    `Validated E00 governance: 19 ADRs, ${requiredGlossary.length} glossary terms, ${goals.goals.length} goals, ${ledger.sources.length} sources, ${risks.risks.length} risks, and 2 gated issue templates.`,
   );
 }
 

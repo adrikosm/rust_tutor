@@ -22,3 +22,4 @@ These accepted decisions define the product baseline. Changes append a new ADR t
 | [ADR-016](ADR-016-restricted-workbench.md) | Monaco and rust-analyzer form a restricted workbench |
 | [ADR-017](ADR-017-cumulative-original-projects.md) | Cumulative projects use original or separately licensed content |
 | [ADR-018](ADR-018-separate-capacity-plans.md) | Product and learner progression have separate plans |
+| [ADR-019](ADR-019-study-deck-scheduling.md) | Study tests are seeded and stratified; flashcards use successive relearning |

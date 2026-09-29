@@ -16,6 +16,12 @@ LLM.
 - Compiler-backed exercises and hidden-test evaluation
 - Evidence-based mastery, spaced review, and explainable recommendations
 - Curriculum, concept graph, search, diagnostics, projects, labs, and a final exam
+- Randomised chapter, strand, and mixed tests drawn from a compiler-verified question bank, with
+  practice, pretest, and confidence-calibration modes
+- Research-backed flashcards: successive relearning on expanding intervals, interleaved sessions,
+  and automatic cards for every missed test question
+- A reference library of 81 free Rust books, courses, exercise sets, tools, and open datasets,
+  linked into every chapter and organised into learning paths
 - A learning journal and compiler-error catalog
 - Local SQLite persistence with backup, export, import, reset, and recovery
 - System-aware themes, reduced-motion support, and keyboard-accessible controls

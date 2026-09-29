@@ -31,3 +31,8 @@ source and review date. Untrusted research enters the raw/wiki layers and cannot
 recommendation without promotion review.
 
 For a sample, copy the structure—not the identifiers or answers—from `content/ownership-pack`. Project stages add one evolving workspace, a predecessor, visible/unseen/prior-regression groups, grader type, artifact rubric, hints, reset/checkpoint lineage, unlock evidence, and source/license scope.
+
+Study-bank questions and flashcards for the from-zero course are authored in
+`apps/web/src/features/study/bank/` and verified with `pnpm content:verify-study-bank`, which
+compiles and runs every code item with rustc. See [the study system](study-system.md) for the
+format, minimums, and research basis.

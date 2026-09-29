@@ -25,13 +25,16 @@ import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StudyRouteImport } from './routes/study'
 import { Route as ConceptsConceptIdRouteImport } from './routes/concepts.$conceptId'
 import { Route as CurriculumModuleIdRouteImport } from './routes/curriculum_.$moduleId'
 import { Route as LearnChapterIdRouteImport } from './routes/learn.$chapterId'
 import { Route as LessonsLessonIdRouteImport } from './routes/lessons.$lessonId'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects_.$projectId'
+import { Route as StudyCardsRouteImport } from './routes/study_.cards'
 import { Route as PracticeAlgorithmsProblemIdRouteImport } from './routes/practice_.algorithms.$problemId'
 import { Route as PracticeRustExerciseIdRouteImport } from './routes/practice_.rust.$exerciseId'
+import { Route as StudyTestSegmentIdRouteImport } from './routes/study_.test.$segmentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -113,6 +116,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudyRoute = StudyRouteImport.update({
+  id: '/study',
+  path: '/study',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConceptsConceptIdRoute = ConceptsConceptIdRouteImport.update({
   id: '/concepts/$conceptId',
   path: '/concepts/$conceptId',
@@ -138,6 +146,11 @@ const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   path: '/projects/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudyCardsRoute = StudyCardsRouteImport.update({
+  id: '/study_/cards',
+  path: '/study/cards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PracticeAlgorithmsProblemIdRoute =
   PracticeAlgorithmsProblemIdRouteImport.update({
     id: '/practice_/algorithms/$problemId',
@@ -147,6 +160,11 @@ const PracticeAlgorithmsProblemIdRoute =
 const PracticeRustExerciseIdRoute = PracticeRustExerciseIdRouteImport.update({
   id: '/practice_/rust/$exerciseId',
   path: '/practice/rust/$exerciseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudyTestSegmentIdRoute = StudyTestSegmentIdRouteImport.update({
+  id: '/study_/test/$segmentId',
+  path: '/study/test/$segmentId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -167,13 +185,16 @@ export interface FileRoutesByFullPath {
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/study': typeof StudyRoute
   '/concepts/$conceptId': typeof ConceptsConceptIdRoute
   '/curriculum/$moduleId': typeof CurriculumModuleIdRoute
   '/learn/$chapterId': typeof LearnChapterIdRoute
   '/lessons/$lessonId': typeof LessonsLessonIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/study/cards': typeof StudyCardsRoute
   '/practice/algorithms/$problemId': typeof PracticeAlgorithmsProblemIdRoute
   '/practice/rust/$exerciseId': typeof PracticeRustExerciseIdRoute
+  '/study/test/$segmentId': typeof StudyTestSegmentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -192,13 +213,16 @@ export interface FileRoutesByTo {
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/study': typeof StudyRoute
   '/concepts/$conceptId': typeof ConceptsConceptIdRoute
   '/curriculum/$moduleId': typeof CurriculumModuleIdRoute
   '/learn/$chapterId': typeof LearnChapterIdRoute
   '/lessons/$lessonId': typeof LessonsLessonIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/study/cards': typeof StudyCardsRoute
   '/practice/algorithms/$problemId': typeof PracticeAlgorithmsProblemIdRoute
   '/practice/rust/$exerciseId': typeof PracticeRustExerciseIdRoute
+  '/study/test/$segmentId': typeof StudyTestSegmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -218,13 +242,16 @@ export interface FileRoutesById {
   '/review': typeof ReviewRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
+  '/study': typeof StudyRoute
   '/concepts/$conceptId': typeof ConceptsConceptIdRoute
   '/curriculum_/$moduleId': typeof CurriculumModuleIdRoute
   '/learn/$chapterId': typeof LearnChapterIdRoute
   '/lessons/$lessonId': typeof LessonsLessonIdRoute
   '/projects_/$projectId': typeof ProjectsProjectIdRoute
+  '/study_/cards': typeof StudyCardsRoute
   '/practice_/algorithms/$problemId': typeof PracticeAlgorithmsProblemIdRoute
   '/practice_/rust/$exerciseId': typeof PracticeRustExerciseIdRoute
+  '/study_/test/$segmentId': typeof StudyTestSegmentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -245,13 +272,16 @@ export interface FileRouteTypes {
     | '/review'
     | '/search'
     | '/settings'
+    | '/study'
     | '/concepts/$conceptId'
     | '/curriculum/$moduleId'
     | '/learn/$chapterId'
     | '/lessons/$lessonId'
     | '/projects/$projectId'
+    | '/study/cards'
     | '/practice/algorithms/$problemId'
     | '/practice/rust/$exerciseId'
+    | '/study/test/$segmentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -270,13 +300,16 @@ export interface FileRouteTypes {
     | '/review'
     | '/search'
     | '/settings'
+    | '/study'
     | '/concepts/$conceptId'
     | '/curriculum/$moduleId'
     | '/learn/$chapterId'
     | '/lessons/$lessonId'
     | '/projects/$projectId'
+    | '/study/cards'
     | '/practice/algorithms/$problemId'
     | '/practice/rust/$exerciseId'
+    | '/study/test/$segmentId'
   id:
     | '__root__'
     | '/'
@@ -295,13 +328,16 @@ export interface FileRouteTypes {
     | '/review'
     | '/search'
     | '/settings'
+    | '/study'
     | '/concepts/$conceptId'
     | '/curriculum_/$moduleId'
     | '/learn/$chapterId'
     | '/lessons/$lessonId'
     | '/projects_/$projectId'
+    | '/study_/cards'
     | '/practice_/algorithms/$problemId'
     | '/practice_/rust/$exerciseId'
+    | '/study_/test/$segmentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -321,13 +357,16 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
+  StudyRoute: typeof StudyRoute
   ConceptsConceptIdRoute: typeof ConceptsConceptIdRoute
   CurriculumModuleIdRoute: typeof CurriculumModuleIdRoute
   LearnChapterIdRoute: typeof LearnChapterIdRoute
   LessonsLessonIdRoute: typeof LessonsLessonIdRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
+  StudyCardsRoute: typeof StudyCardsRoute
   PracticeAlgorithmsProblemIdRoute: typeof PracticeAlgorithmsProblemIdRoute
   PracticeRustExerciseIdRoute: typeof PracticeRustExerciseIdRoute
+  StudyTestSegmentIdRoute: typeof StudyTestSegmentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -444,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/study': {
+      id: '/study'
+      path: '/study'
+      fullPath: '/study'
+      preLoaderRoute: typeof StudyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/concepts/$conceptId': {
       id: '/concepts/$conceptId'
       path: '/concepts/$conceptId'
@@ -479,6 +525,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/study_/cards': {
+      id: '/study_/cards'
+      path: '/study/cards'
+      fullPath: '/study/cards'
+      preLoaderRoute: typeof StudyCardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/practice_/algorithms/$problemId': {
       id: '/practice_/algorithms/$problemId'
       path: '/practice/algorithms/$problemId'
@@ -491,6 +544,13 @@ declare module '@tanstack/react-router' {
       path: '/practice/rust/$exerciseId'
       fullPath: '/practice/rust/$exerciseId'
       preLoaderRoute: typeof PracticeRustExerciseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/study_/test/$segmentId': {
+      id: '/study_/test/$segmentId'
+      path: '/study/test/$segmentId'
+      fullPath: '/study/test/$segmentId'
+      preLoaderRoute: typeof StudyTestSegmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -513,13 +573,16 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
+  StudyRoute: StudyRoute,
   ConceptsConceptIdRoute: ConceptsConceptIdRoute,
   CurriculumModuleIdRoute: CurriculumModuleIdRoute,
   LearnChapterIdRoute: LearnChapterIdRoute,
   LessonsLessonIdRoute: LessonsLessonIdRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
+  StudyCardsRoute: StudyCardsRoute,
   PracticeAlgorithmsProblemIdRoute: PracticeAlgorithmsProblemIdRoute,
   PracticeRustExerciseIdRoute: PracticeRustExerciseIdRoute,
+  StudyTestSegmentIdRoute: StudyTestSegmentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

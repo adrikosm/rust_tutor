@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { EvaluationResult } from "../../lib/api-contract";
+import { ChapterStudyPanel } from "../study/ChapterStudyPanel";
 import {
   completeRust,
   createJournalEntry,
@@ -27,7 +28,7 @@ import {
   type Stop,
   saveChapterProgress,
 } from "./course";
-import { statusLabel } from "./LearningShared";
+import { RichText, statusLabel } from "./LearningShared";
 import { ConsoleOutput } from "./PracticePages";
 
 /**
@@ -50,40 +51,6 @@ export function useCourseProgressSync(): number {
     }
   }, [query.data]);
   return version;
-}
-
-/**
- * Renders course prose with the inline mini-markup:
- * [[GRAPH-ID|text]] wiki link · `code` · **emphasis**
- */
-export function RichText({ text }: { text: string }) {
-  const parts: ReactNode[] = [];
-  const pattern = /\[\[([^\]|]+)\|([^\]]+)\]\]|`([^`]+)`|\*\*([^*]+)\*\*/g;
-  let cursor = 0;
-  let key = 0;
-  for (const match of text.matchAll(pattern)) {
-    if (match.index > cursor) parts.push(text.slice(cursor, match.index));
-    if (match[1] && match[2]) {
-      parts.push(
-        <Link
-          key={key++}
-          className="wiki-link"
-          to="/graph"
-          search={{ id: match[1], depth: 1 }}
-          title={`Open ${match[1]} in the knowledge graph`}
-        >
-          {match[2]}
-        </Link>,
-      );
-    } else if (match[3]) {
-      parts.push(<code key={key++}>{match[3]}</code>);
-    } else if (match[4]) {
-      parts.push(<strong key={key++}>{match[4]}</strong>);
-    }
-    cursor = match.index + match[0].length;
-  }
-  if (cursor < text.length) parts.push(text.slice(cursor));
-  return <>{parts}</>;
 }
 
 function StopCard({
@@ -891,6 +858,7 @@ export function ChapterPage({ chapterId }: { chapterId: string }) {
                 return null;
             }
           })}
+          <ChapterStudyPanel chapterId={chapter.id} />
           <ChapterNote chapter={chapter} />
           <nav className="chapter-navigation" aria-label="Chapter navigation">
             {previous ? (
